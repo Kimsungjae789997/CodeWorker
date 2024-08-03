@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.IProposalMapper">
+
+	<resultMap id="proposalResultMap" type="proposalVO">
+		<result property="proNo" column="pro_no" />
+		<result property="memId" column="mem_id" />
+		<result property="proDate" column="pro_date" />
+		<result property="seekerName" column="seeker_name" />
+		<result property="seekerEmail" column="seeker_email" />
+		<result property="seekerExp" column="seeker_exp" />
+		<result property="eduName" column="edu_name" />
+		<result property="eduMajor" column="edu_major" />
+		<result property="resumeName" column="resume_name" />		
+		<result property="resumeNo" column="resume_no" />		
+		<result property="recNtcId" column="rec_ntc_id" />		
+		<result property="recNtcTitle" column="rec_ntc_title" />		
+		<result property="proReplyStatusCode" column="pro_reply_status_code" />
+		<result property="rnum" column="rnum" />
+	</resultMap>	
+
+	<select id="selectProposalCount" parameterType="pagingVO" resultType="int">
+		select count(pro_no)
+		from proposal
+	</select>
+	
+	<!-- 메인페이지 제안 목록 -->
+	<select id="selectProposalList" parameterType="pagingVO" resultMap="proposalResultMap">
+		select 
+		    b.*
+		from (
+		    select 
+		        a.*, row_number() over (order by a.pro_date desc) as rnum
+		    from (
+					select 
+					    pro.pro_no , pro.mem_id, to_char(pro.pro_date, 'yyyy-mm-dd') as pro_date,
+					    s.seeker_name, s.seeker_email, s.seeker_exp,
+					    e.edu_name , e.edu_major,
+					    r.resume_no, r.resume_name,
+					    rn.rec_ntc_id, rn.rec_ntc_title,
+					    (select detail_code_name from detail_code where detailcode = pro.pro_reply_status_code) pro_reply_status_code
+					from proposal pro left outer join seeker s on(pro.mem_id = s.mem_id)
+					                inner join education e on(pro.mem_id = e.mem_id)
+					                inner join resume r on (pro.mem_id = r.mem_id)
+					                inner join recruitment_notice rn on(pro.rec_ntc_id = rn.rec_ntc_id)
+					where r.resume_yn = 'Y'
+					and pro.crp_id = (select r.crp_id from recruiter r where r.mem_id = #{memId})
+					order by pro.pro_date desc
+		    ) a
+		) b
+		<![CDATA[
+		where 
+		    b.rnum >= #{startRow} and b.rnum <= #{endRow}
+		]]>
+	</select>
+	
+	
+	<!-- 검색 조건 추가하기 전 Count -->
+	<!-- <select id="totalSeekerListCount" parameterType="pagingVO" resultType="int">
+		select count(mem_id)
+		from seeker
+		where seeker_status_code = 'OPN0101'
+	</select>	 -->
+	
+	<select id="totalSeekerListCount" parameterType="pagingVO" resultType="int">
+		select
+    		count(*)
+		from resume r
+		inner join seeker s on s.mem_id = r.mem_id
+		inner join education e on s.mem_id = e.mem_id
+		<if test="searchWord != null and searchWord !=''">
+		inner join resume_career rc on r.resume_no = rc.resume_no
+		</if>
+		<if test="skillstackCode != null and skillstackCode !=''">
+		inner join resume_skill d on r.resume_no = d.resume_no
+		</if>
+		where s.seeker_status_code = 'OPN0101'
+		and r.resume_yn = 'Y'
+		<if test="eduTypeCode != null and eduTypeCode !=''">
+		<![CDATA[
+		AND e.EDU_TYPE_CODE IN (
+    	SELECT DC.DETAILCODE FROM DETAIL_CODE DC
+    	WHERE DC.DETAILCODE >= 'EDU' || LPAD(TO_CHAR(TO_NUMBER(SUBSTR(#{eduTypeCode}, 4)) - 5), 4, '0') AND DC.DETAILCODE <= 'EDU0106'
+		)
+		]]>
+		</if>
+		<if test="seekerExp != null and seekerExp !=''">
+		and s.seeker_exp = #{seekerExp}
+		</if>
+		<if test="seekerExpYearsCode != null and seekerExpYearsCode !=''">
+		and s.seeker_exp_years_code = #{seekerExpYearsCode}
+		</if>
+		<if test="seekerAdd1 != null and seekerAdd1 !=''">
+		and substr(s.seeker_add1, 1, 2) = (
+    		Select dc.detail_code_name from detail_code dc
+   			where dc.detailcode = #{seekerAdd1}
+		)
+		</if>
+		<if test="skillstackCode != null and skillstackCode !=''">
+		and d.skillstack_code = #{skillstackCode}
+		</if>
+		<if test="searchWord != null and searchWord !=''">
+		AND (
+		    rc.RES_CAREER_NAME LIKE '%' || #{searchWord} || '%'
+		    OR rc.RES_CAREER_POSITION LIKE '%' || #{searchWord} || '%'
+		    OR rc.RES_CAREER_CONTENT LIKE '%' || #{searchWord} || '%'
+		)
+		</if>
+	</select>
+	
+
+	<resultMap id="totalSeekerListResultMap" type="seekerVO">
+		<id property="memId" column="mem_id"/>
+		<result property="memId" column="mem_id" />
+		<result property="seekerName" column="seeker_name" />
+		<result property="seekerAge" column="seekerAge" />
+		<result property="seekerBirth" column="seeker_birth" />
+		<result property="seekerAdd1" column="seekerAdd1" />
+		<result property="seekerExp" column="seeker_exp" />
+		<result property="eduType" column="eduType"/>
+		<association property="resumeVO" javaType="kr.or.ddit.vo.ResumeVO">
+			<id property="resumeNo" column="resume_no" />
+			<result property="resumeNo" column="resume_no" />
+			<result property="resumeName" column="resume_name" />
+			<result property="resumeProfileUrl" column="resume_profile_url" />
+			<result property="resumeUpdDate" column="resume_upd_date"/>
+		</association>
+		<association property="educationVO" javaType="kr.or.ddit.vo.EducationVO">
+			<result property="eduName" column="edu_name" />
+			<result property="eduType" column="eduType" />
+			<result property="eduMajor" column="edu_major" />
+		</association>
+		<association property="resumeCareerVO" javaType="kr.or.ddit.vo.ResumeCareerVO">
+			<id property="resCareerNo" column="res_career_no" />
+			<result property="resCareerNo" column="res_career_no" />
+			<result property="resCareerName" column="res_career_name" />
+			<result property="resCareerDept" column="res_career_dept" />
+			<result property="resCareerPosition" column="res_career_position" />
+			<result property="resCareerContent" column="res_career_content" />
+			<result property="resCareerType" column="res_career_type" />
+			<result property="resCareerJoinDate" column="res_career_join_date" />
+			<result property="resCareerOutDate" column="res_career_out_date" />
+			<result property="careerYears" column="careerYears" />
+		</association>
+	</resultMap>
+	
+	<!-- 인재 찾기 > 인재 검색 페이지  -->
+	<select id="totalSeekerListForProposal" parameterType="pagingVO" resultMap="totalSeekerListResultMap">
+		SELECT
+		    H.*
+		FROM(
+		    SELECT
+		        G.*, row_number() over(order by G.RESUME_NO desc) rnum
+		    FROM(
+		            SELECT 
+		                A.RESUME_NO, A.RESUME_NAME, A.RESUME_PROFILE_URL, A.RESUME_UPD_DATE
+		                , S.SEEKER_NAME, S.MEM_ID
+		                , extract(year from sysdate) - to_number(substr(s.seeker_birth, 0, 4)) as "seekerAge" 
+		                , SUBSTR(S.SEEKER_ADD1, 1, 2) as "seekerAdd1"
+		                , S.SEEKER_EXP, S.SEEKER_EXP_YEARS_CODE
+		                , extract(year from to_date(RC.res_career_out_date, 'YYYY-MM-DD')) - extract(year from to_date(RC.res_career_join_date, 'YYYY-MM-DD')) as "careerYears"
+		                , EDU.EDU_NAME, EDU.EDU_MAJOR
+		                , (select detail_code_name from detail_code where detailcode = edu.edu_type_code) as "eduType"
+		                , EDU.EDU_GRADUATED_YN
+		                , RC.RES_CAREER_NAME, RC.RES_CAREER_POSITION, RES_CAREER_DEPT, RC.RES_CAREER_JOIN_DATE, RC.RES_CAREER_OUT_DATE, RC.RES_CAREER_CONTENT
+		            FROM RESUME A    
+		            INNER JOIN SEEKER S ON A.MEM_ID = S.MEM_ID
+		            INNER JOIN EDUCATION EDU ON S.MEM_Id = EDU.MEM_ID
+		            LEFT OUTER JOIN (
+		                SELECT *
+		                FROM (
+		                    SELECT 
+		                        RESUME_NO,
+		                        RES_CAREER_NAME,
+		                        RES_CAREER_POSITION,
+		                        RES_CAREER_DEPT,
+		                        RES_CAREER_JOIN_DATE,
+		                        RES_CAREER_OUT_DATE,
+		                        RES_CAREER_CONTENT,
+		                        ROW_NUMBER() OVER (PARTITION BY RESUME_NO ORDER BY RES_CAREER_OUT_DATE DESC) as rn
+		                    FROM RESUME_CAREER
+		                ) 
+		                WHERE rn = 1
+		            ) RC ON A.RESUME_NO = RC.RESUME_NO
+		            WHERE
+		            	(A.MEM_ID, A.RESUME_NO) IN 
+		            (
+			            SELECT 
+			            	DISTINCT B.MEM_ID, B.RESUME_NO 
+			            FROM 
+				            SEEKER A, RESUME B
+				            <if test="eduTypeCode != null and eduTypeCode !=''">
+				            , EDUCATION C
+				            </if>
+				            <if test="skillstackCode != null and skillstackCode !=''">
+				            , RESUME_SKILL D 
+				            </if>
+				            <if test="resCareerName != null and resCareerName !=''">
+				            , RESUME_CAREER E
+				            </if>
+			            WHERE A.MEM_ID = B.MEM_ID
+			            AND A.SEEKER_STATUS_CODE = 'OPN0101'
+			            AND B.RESUME_YN = 'Y'
+			            <if test="eduTypeCode != null and eduTypeCode !=''">
+			            AND A.MEM_ID = C.MEM_ID
+			            </if>
+			            <if test="skillstackCode != null and skillstackCode !=''">
+			            AND B.RESUME_NO = D.RESUME_NO
+			            </if>
+			            <if test="resCareerName != null and resCareerName !=''">
+			            AND B.RESUME_NO = E.RESUME_NO
+			            </if>
+			            <if test="seekerExp != null and seekerExp !=''">
+			            AND A.SEEKER_EXP = #{seekerExp}
+			            </if>
+			            <if test="seekerExpYearsCode != null and seekerExpYearsCode !=''">
+			            AND A.SEEKER_EXP_YEARS_CODE = #{seekerExpYearsCode} 
+			            </if>
+			            <if test="seekerAdd1 != null and seekerAdd1 !=''">
+			            AND SUBSTR(A.SEEKER_ADD1, 1, 2) = (
+			            		select DC.detail_code_name from detail_code DC
+                				where DC.detailcode = #{seekerAdd1}
+			            )
+			            </if>
+			            <if test="eduTypeCode != null and eduTypeCode !=''">
+			            <![CDATA[
+			            AND C.EDU_TYPE_CODE IN (
+			            	SELECT DC.DETAILCODE FROM DETAIL_CODE DC
+			            	WHERE DC.DETAILCODE >= 'EDU' || LPAD(TO_CHAR(TO_NUMBER(SUBSTR(#{eduTypeCode}, 4)) - 5), 4, '0') AND DC.DETAILCODE <= 'EDU0106'
+            			)
+            			]]>
+			            </if>
+			            <if test="skillstackCode != null and skillstackCode !=''">
+			            AND D.SKILLSTACK_CODE = #{skillstackCode}
+			            </if>
+			            <if test="searchWord != null and searchWord !=''">
+			            AND (
+			            	RC.RES_CAREER_NAME LIKE '%'||#{searchWord }||'%'
+			            	OR RC.RES_CAREER_POSITION LIKE '%'||#{searchWord }||'%'
+			            	OR RC.RES_CAREER_CONTENT LIKE '%'||#{searchWord }||'%'
+			            )
+			            </if>
+		            )
+		        ) G
+		    ) H
+		where 
+		<![CDATA[
+		    H.rnum >= #{startRow} and H.rnum <= #{endRow}
+		]]>
+		order by H.rnum
+	</select>
+	
+	
+	<select id="selectSkillList" parameterType="int" resultType="resumeSkillVO">
+		select
+		    (select detail_code_name from detail_code where detailcode = skillstack_code) as "skillstackCode"
+		from resume_skill
+		where resume_no = #{resumeNo}
+	</select>
+	
+	<select id="careerTotalDuration" parameterType="int" resultType="String">
+		select 
+		  floor(sum(months) / 12) || '년 ' ||
+	      mod(floor(sum(months)), 12) || '개월' as careerTotalDuration
+		from 
+		    (select 
+		        resume_no,
+		        months_between(to_date(res_career_out_date, 'yyyy-mm-dd'), 
+		                       to_date(res_career_join_date, 'yyyy-mm-dd')) as months
+		    from 
+		        resume_career
+		    where 
+		        res_career_out_date is not null 
+		        and res_career_join_date is not null
+		    )
+		where resume_no = #{resumeNo}
+		group by resume_no
+	</select>
+	
+	<insert id="insertProposal" parameterType="proposalVO">
+		<selectKey keyProperty="proNo" resultType="int" order="BEFORE">
+			select prono_seq.nextval from dual
+		</selectKey>
+		insert into proposal(
+					pro_no, crp_id, recuriter_id, mem_id, rec_ntc_id, pro_date, pro_reply_status_code)
+		values(#{proNo}, #{crpId}, #{recuriterId}, #{memId}, #{recNtcId}, sysdate, 'PRO0101')
+	</insert>
+	
+	<select id="getSkills" resultType="Map">
+		select 
+			detailcode
+			, detail_code_name 
+		from detail_code
+		where code = 'SKL01'
+	</select>
+	
+	<select id="getLocations" resultType="Map">
+		select 
+		    detailcode
+		    , detail_code_name
+		from detail_code
+		where code = 'LOC01'
+	</select>
+	
+	<select id="getHasCareer" resultType="Map">
+		select 
+			detailcode
+		    , detail_code_name 
+		from detail_code
+		where code = 'EXP01'
+	</select>
+	
+	<select id="getCareerYears" resultType="Map">
+		select 
+			detailcode
+		    , detail_code_name 
+		from detail_code
+		where code = 'YRS01'
+	</select>
+	
+	<select id="getEducation" resultType="Map">
+		select 
+		    detailcode
+		    , detail_code_name
+		from detail_code
+		where code = 'EDU01'
+		and (detail_code_name = '학력무관' or detail_code_name LIKE '%'||'이상')
+	</select>
+
+</mapper>

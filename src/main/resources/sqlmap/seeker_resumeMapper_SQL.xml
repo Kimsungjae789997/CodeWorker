@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.IResumeMapper">
+
+<select id="getTotalSkillName" resultType="resumeSkillVO">
+   select 
+      detailcode as skillstackCode
+      , detail_code_name as skillstackName
+   from detail_code
+   where code = 'SKL01'
+</select>
+
+<select id="getSeekerInfo" parameterType="String" resultType="seekerVO">
+   select
+       mem_id
+       , seeker_name
+       , seeker_birth
+       , seeker_zip
+       , seeker_add1
+       , seeker_add2
+       , seeker_email
+       , seeker_tel
+       , seeker_exp
+       , seeker_exp_years_code
+   from seeker
+   where mem_id = #{memId} 
+</select>
+
+<select id="getEducation" parameterType="String" resultType="educationVO">
+   select
+       edu_no
+       , mem_id
+       , edu_type_code
+       , (select detail_code_name from detail_code where detailcode = edu_type_code) as "eduType"
+       , edu_name
+       , edu_major
+       , edu_graduated_yn
+       , edu_graduated_date
+       , edu_enter_date
+       , edu_insert_date
+   from education
+   where mem_id = #{memId} 
+</select>
+
+
+<insert id="resumeAdd" parameterType="resumeVO" useGeneratedKeys="true">
+	<selectKey keyProperty="resumeNo"  resultType="int" order="BEFORE">
+	   select resume_no_seq.nextval from dual
+	</selectKey>
+   insert into resume(
+      resume_no, mem_id, resume_yn, resume_name, resume_reg_date, del_yn, resume_write_yn 
+   )values(
+      #{resumeNo}, #{memId}, 'N', #{memName}, sysdate, 'N', 'N'
+   )
+</insert>
+   
+<select id="getResume" parameterType="int" resultType="resumeVO">
+   select resume_no, mem_id, resume_yn, resume_name, resume_reg_date, del_yn, resume_write_yn 
+   from resume
+   where resume_no = #{resumeNo}  and del_yn ='N'
+</select>
+   
+<select id="getResumes" parameterType="string" resultType="resumeVO">
+    select 
+        r.resume_no, 
+        r.mem_id, 
+        r.resume_yn, 
+        r.resume_name, 
+        r.resume_reg_date, 
+        r.del_yn, 
+        r.resume_write_yn, 
+        r.file_yn,
+        rf.file_no
+    from 
+        resume r
+    left join 
+        resume_file rf
+    on 
+        r.resume_no = rf.resume_no
+        and r.file_yn = 'Y'
+    where 
+        r.mem_id = #{memId} 
+        and r.del_yn = 'N'
+</select>
+   
+<update id="resumeNameUpdate" parameterType="resumeVO" >
+   update resume
+   set resume_name = #{resumeName}
+   where resume_no = #{resumeNo} and del_yn = 'N'
+</update>
+   
+<select id="resumeNameSelect" parameterType="resumeVO" resultType="resumeVO">
+   select resume_name, resume_no
+   from resume
+   where resume_no = #{resumeNo} and del_yn = 'N'
+</select>
+   
+<update id="resumeDelete" parameterType="resumeVO">
+   update resume
+   set del_yn = 'Y'
+   where resume_no = #{resumeNo}
+</update>
+   
+<insert id="insertResume" parameterType="resumeVO" useGeneratedKeys="true">
+	<selectKey keyProperty="resumeNo"  resultType="int" order="BEFORE">
+		select resume_no_seq.nextval from dual
+	</selectKey>
+		insert into resume(
+			resume_no, mem_id, resume_yn, resume_name, resume_reg_date, del_yn, resume_write_yn, file_yn
+		)values(
+			#{resumeNo}, #{memId}, 'N', #{resumeName}, sysdate, 'N', 'N', 'Y'
+		)
+</insert> 
+   
+<insert id="insertResumeFile" parameterType="resumeFileVO" useGeneratedKeys="true">
+	<selectKey keyProperty="fileNo" resultType="int" order="BEFORE">
+		select file_no_seq.nextval from dual
+	</selectKey>
+	insert into resume_file(
+		file_no, file_name, file_size, file_savepath, resume_no
+	)values(
+		#{fileNo}, #{fileName}, #{fileSize}, #{fileSavepath}, #{resumeNo}
+	)
+</insert>
+   
+<select id="resumeDownload" parameterType="int" resultType="resumeFileVO">
+	select file_no, file_name, file_size, file_savepath, resume_no
+	from resume_file
+	where file_no = #{fileNo}
+</select>
+   
+<select id="getBasicResumeInfo" parameterType="int" resultType="resumeVO">
+   select 
+       resume_no
+       , resume_name 
+   from resume
+   where resume_no = #{resumeNo}
+</select>
+   
+<update id="initBasicResume" parameterType="resumeVO">
+	update resume
+   set
+      resume_yn = 'N'
+   where mem_id = #{memId}
+</update>
+   
+<update id="updateResume" parameterType="resumeVO">
+   update resume
+   set
+      resume_yn = #{resumeYn}
+      , resume_name = #{resumeName}
+      , resume_introduction = #{resumeIntroduction}
+      , resume_upd_date = sysdate
+      , resume_write_yn = 'Y'
+      <if test="resumeProfileUrl != null and resumeProfileUrl != ''">
+	      , resume_profile_url = #{resumeProfileUrl}
+      </if>
+   where resume_no = #{resumeNo}    
+</update>
+   
+<insert id="insertResumeCareer" parameterType="list">
+   insert all 
+   <foreach collection="list" item="item" separator=" ">
+   into resume_career(
+      res_career_no, resume_no, res_career_name, res_career_dept, res_career_position, res_career_content, 
+       res_career_type, res_career_join_date, res_career_out_date, res_career_insert_date
+   )
+   values
+   (
+      resume_career_no_seq.nextval, #{item.resumeNo}, #{item.resCareerName}, #{item.resCareerDept}, #{item.resCareerPosition}, #{item.resCareerContent},
+      #{item.resCareerType}, #{item.resCareerJoinDate}, #{item.resCareerOutDate}, sysdate 
+   )   
+   </foreach>
+   SELECT 1 FROM DUAL
+</insert>
+   
+<insert id="instResumeCareer" parameterType="resumeCareerVO">
+   insert into resume_career(
+      res_career_no, resume_no, res_career_name, res_career_dept, res_career_position, res_career_content, 
+       res_career_type, res_career_join_date, res_career_out_date, res_career_insert_date
+   )
+   values
+   (
+      resume_career_no_seq.nextval, #{resumeNo}, #{resCareerName}, #{resCareerDept}, #{resCareerPosition}, #{resCareerContent},
+      #{resCareerType}, #{resCareerJoinDate}, #{resCareerOutDate}, sysdate 
+   )
+</insert>
+   
+<insert id="insertResumeSkill" parameterType="list">
+   insert all 
+   <foreach collection="list" item="item" separator=" ">
+   into resume_skill(
+      skillstack_code, resume_no
+   )
+   values
+   (   
+      #{item.skillstackCode}, #{item.resumeNo} 
+   )
+   </foreach>
+   SELECT 1 FROM DUAL
+</insert>
+   
+<insert id="insertCertification" parameterType="list">
+   insert all
+   <foreach collection="list" item="item" separator=" ">
+   into certification(
+       cert_no, resume_no, cert_name, cert_serial_num, cert_date, cert_institution
+   )
+   values
+   (
+      CERT_NO_SEQ.NEXTVAL, #{item.resumeNo}, #{item.certName}, #{item.certSerialNum}, #{item.certDate}, #{item.certInstitution}
+   )
+   </foreach>
+   SELECT 1 FROM DUAL
+</insert>
+   
+<!-- 이력서 상세 조회-->
+<select id="getResumeContent" parameterType="int" resultType="resumeVO">
+   select 
+       resume_no
+       , mem_id
+       , resume_yn
+       , resume_name
+       , resume_profile_url
+       , resume_introduction
+       , resume_reg_date
+       , resume_upd_date
+       , del_yn
+       , resume_write_yn
+       , file_yn
+   from resume
+   where resume_no = #{resumeNo}
+</select>
+   
+<resultMap type="resumeSkillVO" id="resumeSkillResultMap">
+   <result property="skillstackCode" column="skillstack_code" />
+   <result property="resumeNo" column="resume_no" />
+   <association property="detailCodeVO" javaType="kr.or.ddit.vo.DetailCodeVO">
+      <result property="detailCodeName" column="detail_code_name" />
+   </association>
+</resultMap>
+   
+<select id="getUserSkillList" parameterType="int" resultMap="resumeSkillResultMap">
+   select 
+       rs.skillstack_code
+       , rs.resume_no
+       , dc.detail_code_name
+   from resume_skill rs
+   inner join detail_code dc on rs.skillstack_code = dc.detailcode
+   where rs.resume_no = #{resumeNo}
+</select>
+   
+<select id="getUserCareerList" parameterType="int" resultType="resumeCareerVO">
+   select
+     res_career_no
+     , resume_no
+     , res_career_name
+     , res_career_dept
+     , res_career_position
+     , res_career_content
+     , res_career_type
+     , res_career_join_date
+     , res_career_out_date
+     ,res_career_insert_date  
+   from resume_career
+   where resume_no = #{resumeNo}
+</select>
+   
+<select id="getUserCertificationList" parameterType="int" resultType="certificationVO">
+   select
+      cert_no
+      , resume_no
+      , cert_name
+      , cert_serial_num
+      , cert_date
+      , cert_institution
+   from certification
+   where resume_no = #{resumeNo}
+</select>
+   
+<delete id="deleteUserResumeCareerList" parameterType="int">
+   delete from resume_career
+   where resume_no = #{resumeNo}
+</delete>
+   
+<delete id="deleteUserResumeSkillList" parameterType="int">
+   delete from resume_skill
+   where resume_no = #{resumeNo}
+</delete>
+
+<delete id="deleteCertification" parameterType="int">
+   delete from certification
+   where resume_no = #{resumeNo}
+</delete>
+   
+</mapper>

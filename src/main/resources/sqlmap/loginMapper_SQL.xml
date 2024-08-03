@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.ILoginMapper">
+
+    <resultMap type="memberVO" id="memberMap">
+        <id property="memId" column="MEM_ID"/>
+        <result property="memId" column="MEM_ID"/>
+        <result property="memPw" column="MEM_PW"/>
+        <result property="memName" column="MEM_NAME"/>
+        <result property="memTypeCode" column="MEM_TYPE_CODE"/>
+        <association property="recruitVO" resultMap="recruitMap"/>
+        <association property="seekerVO" resultMap="seekerMap"/>
+        <collection property="authList" resultMap="memberAuthMap"/>
+    </resultMap>
+    
+    <resultMap type="recruiterVO" id="recruitMap">
+    	<id property="memId" column="MEM_ID"/>
+    	<id property="crpId" column="CRP_ID"/>
+    	<result property="memId" column="MEM_ID"/>
+    	<result property="crpId" column="CRP_ID"/>
+		<result property="rcrtTel" column="RCRT_TEL"/>
+		<result property="rcrtPosition" column="RCRT_POSITION"/>
+		<result property="rcrtJoinDate" column="RCRT_JOIN_DATE"/>
+		<result property="rcrtEmail" column="RCRT_EMAIL"/>
+		<result property="rcrtProfileUrl" column="RCRT_PROFILE_URL"/>
+		<association property="corporationVO" resultMap="corporationMap"/>
+    </resultMap>
+    
+    <resultMap type="seekerVO" id="seekerMap">
+    	<id property="memId" column="MEM_ID"/>
+    	<result property="memId" column="MEM_ID"/>
+    	<result property="seekerName" column="SEEKER_NAME"/>
+    	<result property="seekerBirth" column="SEEKER_BIRTH"/>
+    	<result property="seekerZip" column="SEEKER_ZIP"/>
+    	<result property="seekerAdd1" column="SEEKER_ADD1"/>
+    	<result property="seekerAdd2" column="SEEKER_ADD2"/>
+    	<result property="seekerEmail" column="SEEKER_EMAIL"/>
+    	<result property="seekerTel" column="SEEKER_TEL"/>
+    	<result property="seekerJoinDate" column="SEEKER_JOIN_DATE"/>
+    	<result property="seekerStatusCode" column="SEEKER_STATUS_CODE"/>
+    	<result property="seekerProfileUrl" column="SEEKER_PROFILE_URL"/>
+    	<result property="seekerExp" column="SEEKER_EXP"/>
+    	<result property="seekerDelYN" column="SEEKER_DEL_YN"/>
+    	<result property="seekerExpYearsCode" column="SEEKER_EXP_YEARS_CODE"/>
+    </resultMap>
+    
+    <resultMap type="corporationVO" id="corporationMap">
+    	<id property="crpId" column="crp_id"/>
+    	<result property="crpId" column="crp_id"/>
+    	<result property="crpName" column="crp_name"/>
+    	<result property="crpLogoUrl" column="crp_logo_url"/>
+    </resultMap>
+    
+    <resultMap type="memberAuth" id="memberAuthMap">
+        <id property="memId" column="MEM_ID"/>
+        <result property="memId" column="MEM_ID"/>
+        <result property="memAuth" column="MEM_AUTH"/>
+    </resultMap>
+
+	<select id="selectUserRole" parameterType="string" resultType="string">
+		select mem_auth from member_auth
+		where mem_id = #{username}
+	</select>
+
+    <select id="readByUserId" parameterType="string" resultMap="memberMap">
+        select 
+        	m.mem_id, m.mem_pw, m.mem_name, m.mem_type_code, a.mem_auth
+        	<if test="auth == 'ROLE_RECRUITER'">
+        		,r.crp_id, c.crp_name, c.crp_logo_url, r.rcrt_profile_url, r.rcrt_position
+        	</if>
+        	<if test="auth == 'ROLE_SEEKER'">
+        		, s.seeker_name, s.seeker_birth, s.seeker_zip, s.seeker_add1, s.seeker_add2,
+	            s.seeker_email, s.seeker_tel, s.seeker_join_date, s.seeker_status_code,
+	            s.seeker_profile_url, s.seeker_exp, s.seeker_del_yn, s.seeker_exp_years_code
+        	</if>
+        from 
+        	member m 
+        left outer join 
+        	member_auth a on (m.mem_id = a.mem_id)
+        <if test="auth == 'ROLE_RECRUITER'">
+        	inner join recruiter r on m.mem_id = r.mem_id
+        	inner join corporation c on r.crp_id = c.crp_id
+        </if>
+        <if test="auth == 'ROLE_SEEKER'">
+        	inner join seeker s on m.mem_id = s.mem_id
+        </if>
+        where m.mem_id = #{username}
+    </select>
+    
+    <select id="seekerIdCheck" parameterType="string" resultType="memberVO">
+    	select
+    		mem_id
+    	from member
+    	where mem_id = #{memId}
+    </select>
+</mapper>

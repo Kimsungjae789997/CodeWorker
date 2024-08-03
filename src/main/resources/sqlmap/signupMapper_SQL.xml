@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.ISignupMapper">
+
+
+	<!-- 회원가입할때 VO값 두번씩 insert했음  -->
+	<insert id="signup1" parameterType="memberVO">
+	    insert into member(
+	        mem_id, mem_pw, mem_type_code, mem_name, enabled
+	    ) values (
+	        #{memId}, #{memPw}, 'ROL0102', #{memName}, 1
+	    )
+	</insert>
+	
+	<insert id="signup2" parameterType="memberVO">
+	    insert into seeker(
+	        mem_id, seeker_name, seeker_birth, seeker_zip,
+	        seeker_add1, seeker_add2, seeker_email, seeker_tel,
+	        seeker_join_date,seeker_status_code,seeker_exp, seeker_modify_yn
+	    ) values (
+	        #{memId}, #{memName}, #{seekerVO.seekerBirth},
+	        #{seekerVO.seekerZip}, #{seekerVO.seekerAdd1}, #{seekerVO.seekerAdd2},
+	        #{seekerVO.seekerEmail}, #{seekerVO.seekerTel}, sysdate, 'OPN0102', '신입', #{seekerVO.seekerModifyYn}
+	    )
+	</insert>
+	
+	<insert id="signupAuth" parameterType="string">
+	insert into member_auth(
+		mem_id, mem_auth
+	)values(
+		#{memId}, 'ROLE_SEEKER'
+	)
+	</insert>
+	
+	<update id="addInsert" parameterType="seekerVO">
+		update  
+			seeker
+		set
+			seeker_status_code = #{seekerStatusCode},
+			seeker_exp = #{seekerExp}
+		where
+			mem_id = #{memId}	
+		
+	</update>
+</mapper>

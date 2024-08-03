@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.IAlarmMapper">
+	
+<!-- 	<select id="alarmList" parameterType="alarmVO" resultType="alarmVO">
+	      select a.alarm_no, a.alarm_content, to_char(a.alarm_date, 'YYYY-MM-DD HH24:MI') alarm_date, a.alarm_type,
+	             rec.rec_ntc_title
+	      from alarm a
+	      inner join apply ap on a.apply_no = ap.apply_no
+	      inner join recruitment_notice rec on ap.rec_ntc_id = rec.rec_ntc_id
+	      where a.mem_id = #{memId} and a.alarm_yn = 'N'
+	</select>
+	
+	<select id="alarmList2" parameterType="alarmVO" resultType="alarmVO">
+			      select a.alarm_no, a.alarm_content, to_char(a.alarm_date, 'YYYY-MM-DD HH24:MI') alarm_date, a.alarm_type,
+	             c.rec_ntc_title
+	      from alarm a
+	      inner join proposal b on a.pro_no = b.pro_no
+	      inner join recruitment_notice c on b.rec_ntc_id = c.rec_ntc_id
+	      where a.mem_id = #{memId} and a.alarm_yn = 'N'
+	</select> -->
+	
+	<select id="alarmList" parameterType="alarmVO" resultType="alarmVO">
+	    SELECT a.alarm_no, a.alarm_content, TO_CHAR(a.alarm_date, 'YYYY-MM-DD HH24:MI') AS alarm_date, a.alarm_type,
+	           rec.rec_ntc_title
+	    FROM alarm a
+	    INNER JOIN apply ap ON a.apply_no = ap.apply_no
+	    INNER JOIN recruitment_notice rec ON ap.rec_ntc_id = rec.rec_ntc_id
+	    WHERE a.mem_id = #{memId} AND a.alarm_yn = 'N'
+	
+	    UNION ALL
+	
+	    SELECT a.alarm_no, a.alarm_content, TO_CHAR(a.alarm_date, 'YYYY-MM-DD HH24:MI') AS alarm_date, a.alarm_type,
+	           c.rec_ntc_title
+	    FROM alarm a
+	    INNER JOIN proposal b ON a.pro_no = b.pro_no
+	    INNER JOIN recruitment_notice c ON b.rec_ntc_id = c.rec_ntc_id
+	    WHERE a.mem_id = #{memId} AND a.alarm_yn = 'N'
+	    
+	    ORDER BY alarm_date DESC
+	</select>
+
+	
+	<update id="updateAlarmRead" parameterType="int">
+		update alarm
+		set alarm_yn = 'Y'
+		where alarm_no = #{alarmNo}
+	</update>
+	
+	<select id="getNoReadAlarm" parameterType="string" resultType="alarmVO">
+		select count(alarm_no) noReadAlarm
+		from alarm
+		where mem_id = #{memId} and alarm_yn = 'N'
+	</select>
+</mapper>

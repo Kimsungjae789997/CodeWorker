@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.IRecruitmentMgmtMapper">
+
+	<sql id="recruitmentSearch">
+		<if test="searchType != null and searchType == 'recNtcTitle'">
+			and (rec_ntc_title like '%'||#{searchWord}||'%')
+		</if>
+		<if test="searchType != null and searchType == 'positionCode'">
+			and (position_code '%'||#{searchWord}||'%')
+		</if>
+	</sql>
+
+
+	<select id="selectCrpId" parameterType="string" resultType="string">
+		select crp_id
+		from recruiter
+		where mem_id = #{memId}
+	</select>
+	
+	<select id="selectRecruitmentCount" parameterType="pagingVO" resultType="int">
+		select count(rec_ntc_id)
+		from recruitment_notice
+		where 1 = 1 and crp_id = #{crpId} and del_yn = 'N'
+		<include refid="recruitmentSearch"/>
+	</select>
+
+	
+	 <select id="selectRecruitmentAllSelect" parameterType="pagingVO" resultType="recruitmentNoticeVO">
+        select    
+            b.*
+        from (
+            select
+                a.*, row_number() over(order by a.rec_ntc_start desc) rnum
+            from (
+                select 
+                    rec_ntc_id ,rec_ntc_title,to_char(rn.rec_ntc_start, 'YYYY-MM-DD') rec_ntc_start, to_char(rn.rec_ntc_end, 'YYYY-MM-DD') rec_ntc_end,
+                    (select d.detail_code_name from detail_code d
+                     where d.detailcode = rn.position_code) position_code
+                from recruitment_notice rn
+                where 1=1 and crp_id = #{crpId}
+                <include refid="recruitmentSearch"/>
+                
+            ) a
+        ) b
+        <![CDATA[
+        where b.rnum >= #{startRow} and b.rnum <= #{endRow}
+   		]]>
+   		order by b.rec_ntc_id desc
+    </select>
+    
+   
+    <select id="selectApplicantCount" parameterType="string" resultType="int">
+  	  select count(apply_no) applicant
+  	  from apply
+  	  where rec_ntc_id = #{recNtcId}
+    </select>
+    
+    <select id="recruitmentDetail" parameterType="string" resultType="recruitmentNoticeVO">
+     select
+     		rn.rec_ntc_title, rn.crp_id, rn.rec_ntc_id,
+     		(select d.detail_code_name from detail_code d where d.detailcode = rn.edu_code) edu_code,
+     		(select d.detail_code_name from detail_code d where d.detailcode = rn.experience_code) experience_code,
+     		(select d.detail_code_name from detail_code d where d.detailcode = rn.experience_level_code) experience_level_code,
+   			(select d.detail_code_name from detail_code d where d.detailcode = rn.working_type_code) working_type_code,
+   			(select d.detail_code_name from detail_code d where d.detailcode = rn.working_loc_code) working_loc_code,
+   			(select d.detail_code_name from detail_code d where d.detailcode = rn.salary_range_code) salary_range_code,
+   			rn.rcrt_name, rn.rcrt_tel, rn.rcrt_email
+     from recruitment_notice rn
+     where rn.rec_ntc_id = #{recNtcId} and rn.del_yn = 'N'
+    </select>
+    
+    <select id="selectSkillStack" parameterType="string" resultType="recruitmentSkillStackVO">
+    	select  (select d.detail_code_name from detail_code d where d.detailcode = rn.skillstack_code) skillstack_code
+    	from recruitment_skillstack rn
+    	where rec_ntc_id = #{recNtcId}
+    </select>
+    
+    <select id="selectCorporation" parameterType="string" resultType="corporationVO">
+    	select crp_url
+    	from corporation
+    	where crp_id = #{crpId}
+    </select>
+    
+    <update id="recruitmentDelete" parameterType="string">
+    	update  recruitment_notice
+    	set del_yn = 'Y'
+    	where rec_ntc_id = #{recNtcId}
+    	
+    </update>
+    
+</mapper>

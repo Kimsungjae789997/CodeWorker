@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.ICommunityMapper">
+
+	<!-- 커뮤니티 게시글 목록 -->
+	<!-- 페이징 처리 -->
+	<select id="countCommunityList" parameterType="pagingVO" resultType="int">
+		select
+			count(*)
+		from
+			community
+		where
+			community_del_yn = 'N'
+		and
+			1 = 1
+	</select>
+	
+	<select id="communityList" parameterType="pagingVO" resultType="communityVO">
+	    select
+	        b.*
+	    from (
+	        select
+	            a.*, ROW_NUMBER() OVER (ORDER BY a.community_reg_date DESC) AS rnum
+	        from (
+	            select
+	                community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn,
+	                (select
+	                    count(*)
+	                 from
+	                    community_reply
+	                 where
+	                    community_no = community.community_no) AS "replyCount"
+	            from
+	                community
+	            where
+	            	community_del_yn = 'N'
+	            order by
+	                community_reg_date DESC
+	        ) a
+	    ) b
+	    <![CDATA[
+	    WHERE b.rnum >= #{startRow} AND b.rnum <= #{endRow}
+	    ]]>
+	</select>
+
+
+	<!-- 커뮤니티 게시글 상세 보기 -->
+	<select id="communityMainDetail" parameterType="int" resultType="map">
+		select 
+		    A.community_no as "communityNo", 
+		    B.mem_name as "memName", 
+		    B.mem_id as "memId",
+		    A.community_title as "communityTitle", 
+		    dbms_lob.substr(A.community_content, dbms_lob.getlength(A.community_content), 1) as "communityContent", 
+		    A.community_reg_date as "communityRegDate",
+		    A.community_hit as "communityHit",
+		    A.community_del_yn as "communityDelYN",
+		    A.community_warn_yn as "communityWarnYN"
+		from 
+		    community A
+		join 
+		    member B ON A.mem_id = B.mem_id
+		where
+		    A.community_no = #{communityNo}
+	</select>
+	
+	
+	<!-- 커뮤니티 게시글 댓글 조회 -->
+	<select id="communityMainReply" parameterType="int" resultType="map">
+		WITH T AS(
+		    SELECT 
+		                A.COMMUNITY_NO,
+		                B.COMM_REPLY_CONTENT,
+		                B.COMM_REPLY_REG_DATE,
+		                B.COMM_REPLY_NO,
+		                B.COMM_REPLY_DEL_YN,
+		                B.PARENT_REPLY_NO,
+		                C.MEM_ID,
+		                C.MEM_NAME
+		            FROM 
+		                COMMUNITY_REPLY B
+		            JOIN 
+		                MEMBER C ON B.MEM_ID = C.MEM_ID
+		            JOIN
+		                COMMUNITY A ON A.COMMUNITY_NO = B.COMMUNITY_NO
+		            WHERE 
+		                A.COMMUNITY_NO = #{communityNo}
+		)
+		SELECT T.COMMUNITY_NO        as "communityNo",
+               T.COMM_REPLY_CONTENT  as "commReplyContent",
+               T.COMM_REPLY_REG_DATE as "commReplyRegDate",
+               T.COMM_REPLY_NO       as "commReplyNo",
+               T.COMM_REPLY_DEL_YN   as "commReplyDelYN",
+               T.PARENT_REPLY_NO     as "parentReplyNo",
+               T.MEM_ID              as "memId",
+               T.MEM_NAME            as "memName",
+               LEVEL				 as "level"
+		FROM T
+		START WITH T.PARENT_REPLY_NO IS NULL
+		CONNECT BY PRIOR T.COMM_REPLY_NO = T.PARENT_REPLY_NO
+		ORDER SIBLINGS BY T.COMM_REPLY_NO DESC
+	</select>
+	
+	
+	<!-- 커뮤니티 게시글 조회수 증가 -->
+	<update id="incrementCommunityHit" parameterType="int">
+		update 
+			community
+		set 
+			community_hit = community_hit + 1
+		where 
+			community_no = #{communityNo}
+	</update>
+	
+	
+	<!-- 커뮤니티 검색 기능(제목/작성자) -->
+	<select id="searchCommunity" parameterType="pagingVO" resultType="communityVO">
+	    SELECT b.*
+	    FROM (
+	        SELECT a.*, ROW_NUMBER() OVER (ORDER BY a.community_reg_date DESC) AS rnum
+	        FROM (
+	            SELECT community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn,
+	            	(select
+	                    count(*)
+	                 from
+	                    community_reply
+	                 where
+	                    community_no = community.community_no) AS "replyCount"
+	            FROM community
+	            WHERE ${searchType} LIKE '%' || #{searchWord} || '%'
+	            AND community_del_yn = 'N'
+	        ) a
+	    ) b
+	    <![CDATA[
+	    WHERE b.rnum >= #{startRow} AND b.rnum <= #{endRow}
+	    ]]>
+	</select>
+
+
+	<!-- 커뮤니티 검색 결과페이지 페이징 -->
+	<select id="getSearchCount" parameterType="pagingVO" resultType="int">
+	    SELECT COUNT(*)
+	    FROM community
+	    WHERE ${searchType} LIKE '%' || #{searchWord} || '%'
+	</select>
+	
+	
+	<!-- 커뮤니티 글 쓰기 -->
+	<insert id="communityInsert" parameterType="communityVO">
+		<selectKey keyProperty="communityNo" resultType="int" order="BEFORE">
+			select
+				seq_community.nextval
+			from
+				dual	
+		</selectKey>
+		insert into community
+			(community_no, mem_id, community_title, community_content, community_reg_date, community_hit, community_del_yn, community_warn_yn)
+		values
+			(#{communityNo}, #{memId}, #{communityTitle}, #{communityContent}, TO_CHAR(sysdate, 'yyyy-MM-dd') , 0, 'N', 'N')
+	</insert>
+	
+	
+	<!-- 커뮤니티 최신순 클릭 이벤트 -->
+	<select id="communitySortRecent" resultType="communityVO">
+		select
+			community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn,
+			(select
+				count(*)
+			 from
+			 	community_reply
+			 where
+			 	community_no = community.community_no) as "replyCount"
+		from
+			community
+		order by
+			community_reg_date DESC
+	</select>
+	
+	
+	<!-- 커뮤니티 조회순 클릭 이벤트 -->
+	<select id="communitySortViews" resultType="communityVO">
+		select
+			community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn,
+			(select
+				count(*)
+			 from
+			 	community_reply
+			 where
+			 	community_no = community.community_no) as "replyCount"
+		from
+			community
+		order by
+			community_hit DESC
+	</select>
+	
+	<!-- 커뮤니티 내 글 보기 클릭 이벤트 -->
+	<select id="communitySortMyPost" resultType="communityVO">
+		select
+			community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn,
+			(select
+				count(*)
+			 from
+			 	community_reply
+			 where
+			 	community_no = community.community_no) as "replyCount"
+		from
+			community
+		where
+			mem_id = #{memId}
+	</select>
+	
+	<!-- 커뮤니티 내 글 수정 -->
+	<update id="communityUpdate" parameterType="communityVO">
+		update 
+			community
+		set
+			community_title = #{communityTitle}, 
+			community_content = #{communityContent}
+		where
+			mem_id = #{memId}
+		and
+			community_no = #{communityNo}
+	</update>
+	
+	<!-- 커뮤니티 내 글 삭제 -->
+	<delete id="communityDelete" parameterType="communityVO">
+		delete from
+			community
+		where
+			mem_id = #{memId}
+		and
+			community_no = #{communityNo}
+	</delete>
+	
+	<!-- 댓글 등록 -->
+	<insert id="addReply" parameterType="communityReplyVO">
+		<selectKey keyProperty="commReplyNo" resultType="int" order="BEFORE">
+			select
+				seq_community_reply.nextval
+			from
+				dual	
+		</selectKey>
+		insert into community_reply
+			(comm_reply_no, community_no, mem_id, comm_reply_content, comm_reply_reg_date)
+		values
+			(#{commReplyNo}, #{communityNo}, #{memId}, #{commReplyContent}, TO_CHAR(sysdate, 'yyyy-MM-dd'))
+	</insert>
+
+	
+	<!-- 대댓글 등록 -->
+	<insert id="addRereply" parameterType="map">
+	    insert into community_reply 
+	    	(comm_reply_no, community_no, mem_id, comm_reply_content, comm_reply_reg_date, comm_reply_del_yn, parent_reply_no) 
+	    values (
+	        (select NVL(MAX(COMM_REPLY_NO), 0) + 1 from community_reply),
+	        #{communityNo},
+	        #{memId},
+	        #{commReplyContent},
+	        TO_CHAR(SYSDATE, 'YYYY-MM-DD'),
+	        'N',
+	        #{parentReplyNo}
+	    )
+	</insert>
+	
+	
+	<!-- 내가 작성한 댓글 수정 -->
+	<update id="updateReply" parameterType="communityReplyVO">
+		update 
+			community_reply
+		set
+			comm_reply_content = #{commReplyContent}
+		where
+			comm_reply_no = #{commReplyNo}
+		and
+			mem_id = #{memId}
+	</update>
+	
+	
+	<!-- 내가 작성한 대댓글 수정 -->
+	<update id="updateRereply" parameterType="communityReplyVO">
+		update
+			community_reply
+		set
+			comm_reply_content = #{commReplyContent}
+		where
+			parent_reply_no = #{parentReplyNo}
+		and
+			mem_id = #{memId}
+	</update>
+	
+	
+	<!-- 내가 작성한 댓글 삭제 -->
+	<delete id="deleteReply" parameterType="communityReplyVO">
+		delete from
+			community_reply
+		where
+			comm_reply_no = #{commReplyNo}
+		and
+			mem_id = #{memId}	
+	</delete>
+	
+	
+	
+	
+	<!-- 다른 유저가 작성한 글 내역 보기 -->
+	<!-- 페이징 처리 -->
+	<select id="countCommunityUserPost" parameterType="pagingVO" resultType="int">
+	    select
+	        count(*)
+	    from
+	        community
+	    where
+	        community_del_yn = 'N'
+	    and
+	        mem_id = #{memId}
+	    and
+	    	1 = 1
+	</select>
+	
+	<select id="communityUserPost" parameterType="pagingVO" resultType="communityVO">
+	    SELECT
+	        b.*
+	    FROM (
+	        SELECT
+	            a.*, ROW_NUMBER() OVER (ORDER BY a.community_reg_date DESC) AS rnum
+	        FROM (
+	            SELECT
+	                community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn,
+	                (SELECT
+	                    COUNT(*)
+	                 FROM
+	                    community_reply
+	                 WHERE
+	                    community_no = community.community_no) AS "replyCount"
+	            FROM
+	                community
+	            WHERE
+	                mem_id = #{memId}
+	            AND 
+	            	community_del_yn = 'N'
+	            ORDER BY
+	                community_reg_date DESC
+	        ) a
+	    ) b
+	    <![CDATA[
+	    WHERE b.rnum >= #{pagingVO.startRow} AND b.rnum <= #{pagingVO.endRow}
+	    ]]>
+	</select>
+	
+	
+	<!-- 다른 유저 작성 글 내역 최신순 보기 클릭 이벤트 -->
+	<select id="communitySortRecentByUser" parameterType="map" resultType="communityVO">
+		select
+			community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn
+		from
+			community
+		where
+			mem_id = #{memId}
+		order by
+			community_reg_date DESC
+	</select>
+	
+	
+	<!-- 다른 유저 작성 글 내역 조회순 보기 클릭 이벤트 -->
+	<select id="communitySortViewsByUser" parameterType="map" resultType="communityVO">
+		select
+			community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn
+		from
+			community
+		where
+			mem_id = #{memId}
+		order by
+			community_hit DESC
+	</select>
+	
+	<!-- 다른 유저 작성 글 내역 페이지 검색 이벤트 -->
+	<select id="searchCommunityByUser" parameterType="hashMap" resultType="communityVO">
+		select
+			community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn
+		from
+			community
+		where
+			community_title LIKE '%' || #{searchKeyword} || '%'
+		and 
+			mem_id = #{memId}
+		order by
+			community_reg_date DESC
+	</select>
+	
+	
+	<!-- 게시글 신고 내역 저장 -->
+	<insert id="reportCommunity" parameterType="complaintVO">
+		<selectKey keyProperty="complaintNo" resultType="int" order="BEFORE">
+			select
+				seq_complaint.nextval
+			from
+				dual	
+		</selectKey>
+		insert into complaint
+			(complaint_no, community_no, mem_id, complaint_reason, complaint_content)
+		values
+			(#{complaintNo}, #{communityNo}, #{memId}, #{complaintReason}, #{complaintContent})
+	</insert>
+	
+	
+	<!-- 게시글 신고 여부 업데이트(Y/N) -->
+	<update id="updateCommunityWarnYN" parameterType="int">
+		update
+			community
+		set
+			community_warn_yn = 'Y'
+		where
+			community_no = #{communityNo}
+	</update>
+
+</mapper>

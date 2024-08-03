@@ -1,0 +1,850 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.IAdminMapper">
+	
+	<!-- 구직회원수 구하기 -->
+	<select id="seekerNum" resultType="int">
+		select
+			count(*) as "seekerNum"
+		from
+			seeker
+	</select>
+	
+	
+	<!-- 가입기업수 구하기 -->
+	<select id="crpNum" resultType="int">
+		select
+			count(*) as "crpNum"
+		from
+			corporation
+	</select>
+	
+	
+	<!-- 등록공고수 구하기 -->	
+	<select id="recNtcNum" resultType="int">
+		select
+			count(*) as "recNtcNum"
+		from
+			recruitment_notice
+	</select>
+	
+	
+	<!-- 등록 공지 목록 -->
+	<select id="adminMainNoticeList" resultType="boardVO" parameterType="map">
+		select
+	        board_no, board_type_code, board_target_code, board_title, board_content, board_reg_date, del_yn
+	    from
+	        board
+	    where
+	        board_type_code = #{boardTypeCode}
+	    <if test="boardTargetCode != null and boardTargetCode != ''">
+        and 
+        	board_target_code = #{boardTargetCode, jdbcType=VARCHAR}
+	    </if>
+	    order by
+	    	board_reg_date DESC
+	</select>
+	
+	
+	<!-- 문의사항 목록 -->
+	<select id="adminMainQuestionList" resultType="questionVO">
+		select
+		    question_no, mem_id, board_target_code, question_title, question_content, question_reg_date, del_yn, answer_yn
+		from 
+		    question
+		order by
+			question_reg_date DESC
+	</select>
+	
+	
+	<!-- 커뮤니티 목록 -->
+	<select id="adminCommunityMainList" resultType="communityVO">
+		select
+			community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn,
+			(select
+				count(*)
+			 from
+			 	community_reply
+			 where
+			 	community_no = community.community_no) as "replyCount"
+		from
+			community
+		where
+			community_del_yn = 'N'
+		order by 
+			community_reg_date DESC
+	</select>
+	
+	
+	<!-- 가입신청 기업 -->
+	<select id="adminMainRequestJoinCrpList" resultType="joinreqcrpVO">
+		select
+			j_req_crp_id as "joReqCrpId", 
+			j_req_crp_name as "joReqCrpName", 
+			j_req_crp_representative as "joReqCrpRepresentative",
+			j_req_crp_date as "joReqCrpDate",
+			j_req_status as "joReqStatus"
+		from
+			join_req_crp
+	</select>
+	
+	
+	
+	
+	<!-- ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ -->
+
+	<!-- 구직자회원 목록 조회 -->
+	<!-- 페이징처리 -->
+	<select id="countSeekerList" parameterType="pagingVO" resultType="int">
+		select 
+			count(*)
+		from 
+			seeker
+		where 
+			1 = 1
+	</select>
+	
+	<!-- 구직자 회원 목록 -->
+	<select id="seekerList" parameterType="pagingVO" resultType="seekerVO">
+	    SELECT
+	        b.*
+	    FROM (
+	        SELECT
+	            a.*, ROW_NUMBER() OVER (ORDER BY a.seeker_join_date DESC) AS rnum
+	        FROM (
+	            SELECT
+	                mem_id, seeker_name, TO_CHAR(seeker_join_date, 'YYYY-MM-DD') AS seeker_join_date, seeker_email, seeker_status_code, seeker_del_yn, seeker_modify_yn
+	            FROM
+	                seeker
+	            WHERE
+	                1 = 1
+	            ORDER BY
+	                seeker_join_date DESC
+	        ) a
+	    ) b
+	    <![CDATA[
+	    WHERE b.rnum >= #{startRow} AND b.rnum <= #{endRow}
+	    ]]>
+	</select>
+
+	
+	<!-- 구직자회원 한명 상세 조회 -->
+  	<select id="seekerDetail" resultType="seekerVO">
+		select
+			mem_id, seeker_name, seeker_birth, seeker_email, seeker_join_date,
+			seeker_add1, seeker_add2, seeker_tel, seeker_status_code, seeker_exp, seeker_del_yn, seeker_modify_yn
+		from
+			seeker
+		where 
+			mem_id = #{memId}
+	</select>
+	
+	<!-- 구직자 회원 정보 수정 -->
+	<update id="seekerUpdate" parameterType="seekerVO">
+		update 
+		    seeker 
+		set 
+		    seeker_email = #{seekerEmail},
+		    seeker_exp = #{seekerExp},
+		    seeker_status_code = #{seekerStatusCode},
+		    seeker_add1 = #{seekerAdd1},
+		    seeker_add2 = #{seekerAdd2},
+		    seeker_tel = #{seekerTel}
+		where 
+    		mem_id = #{memId}
+	</update>
+	
+	<!-- 구직자 회원 탈퇴 처리(Y/N) -->
+	<update id="seekerRemove" parameterType="seekerVO">
+		update 
+			seeker
+		set 
+			seeker_del_yn = 'Y'
+		where 
+			mem_id = #{memId}
+	</update>
+	
+	<!-- ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ -->
+	
+	
+	<!-- 구인자 회원 목록 조회 -->
+	<!-- 페이징처리 -->
+	<select id="countRecruiterList" parameterType="pagingVO" resultType="int">
+	    SELECT COUNT(*)
+	    FROM recruiter A
+	    JOIN corporation B ON A.crp_id = B.crp_id
+	    JOIN member C ON A.mem_id = C.mem_id
+	    WHERE 1 = 1
+	</select>
+	
+	<select id="recruiterList" parameterType="pagingVO" resultType="recruiterVO">
+	    SELECT
+	        b.*
+	    FROM (
+	        SELECT
+	            a.*, ROW_NUMBER() OVER (ORDER BY a.rcrt_join_date DESC) AS rnum
+	        FROM (
+	            SELECT
+	                A.mem_id, 
+	                A.rcrt_join_date,
+	                A.rcrt_email, 
+	                A.rcrt_del_yn,
+	                B.crp_name, 
+	                C.mem_name
+	            FROM 
+	                recruiter A
+	            JOIN 
+	                corporation B ON A.crp_id = B.crp_id
+	            JOIN 
+	                member C ON A.mem_id = C.mem_id
+	            WHERE
+	            	1 = 1
+	            ORDER BY 
+	                A.rcrt_join_date DESC
+	        ) a
+	    ) b
+	    <![CDATA[
+	    WHERE b.rnum >= #{startRow} AND b.rnum <= #{endRow}
+	    ]]>
+	</select>
+	
+	
+	<!-- 구인자 회원 한명 상세 조회 -->
+	<select id="recruiterDetail" resultType="map">
+		select
+		    A.mem_id as "memId", 
+		    A.rcrt_position as "rcrtPosition", 
+		    A.rcrt_join_date as "rcrtJoinDate", 
+		    A.rcrt_email as "rcrtEmail", 
+		    A.rcrt_tel as "rcrtTel",
+		    A.rcrt_del_yn as "rcrtDelYN",
+		    B.mem_name as "memName",
+		    C.crp_name as "crpName"
+		from 
+		    recruiter A
+		join 
+		    member B ON A.mem_id = B.mem_id
+		join 
+		    corporation C ON A.crp_id = C.crp_id
+		where 
+		    A.mem_id = #{memId}
+	</select>
+
+	<!-- 구인자 회원 정보 수정 -->
+	<update id="recruiterUpdate" parameterType="recruiterVO">
+		update 
+		    recruiter 
+		set 
+		    rcrt_position = #{rcrtPosition},
+		    rcrt_email = #{rcrtEmail},
+		    rcrt_tel = #{rcrtTel}
+		where 
+    		mem_id = #{memId}
+	</update>
+
+	<!-- 구인자 회원 탈퇴 처리(Y/N) -->
+	<update id="recruiterRemove" parameterType="recruiterVO">
+		update 
+			recruiter
+		set 
+			rcrt_del_yn = 'Y'
+		where 
+			mem_id = #{memId} 
+	</update>
+
+
+	<!-- ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ -->
+
+
+	<!-- 기업 목록 조회 -->
+	<!-- 페이징 처리 -->
+	<select id="countCrpList" parameterType="pagingVO" resultType="int">
+		select 
+			count(*)
+		from 
+			corporation
+	</select>
+	
+	<select id="crpList" parameterType="pagingVO" resultType="corporationVO">
+	    SELECT
+	        b.*
+	    FROM (
+	        SELECT
+	            a.*, ROW_NUMBER() OVER (ORDER BY a.crp_reg_date) AS rnum
+	        FROM (
+	            SELECT 
+	                crp_id, crp_name, crp_industry_code, crp_del_yn, crp_reg_date
+	            FROM 
+	                corporation
+	            ORDER BY 
+	                crp_reg_date DESC
+	        ) a
+	    ) b
+	    <![CDATA[
+	    WHERE b.rnum >= #{startRow} AND b.rnum <= #{endRow}
+	    ]]>
+	</select>
+
+
+	<!-- 기업 상세 조회 -->
+	<select id="crpDetail" resultType="corporationVO">
+		select 
+		    crp_id, crp_reg_no, crp_name, crp_representative, crp_license_no, crp_license_file, crp_url, crp_address1, crp_address2, crp_zip_code,
+		    crp_tel, crp_email, crp_opening_day, crp_type_code, crp_capitalstock, crp_industry_code, crp_emp_number, crp_del_yn
+		from 
+			corporation
+		where 
+			crp_id = #{crpId}
+	</select>
+	
+	<!-- 기업 정보 수정 -->
+	<update id="crpUpdate" parameterType="corporationVO">
+		update 
+			corporation
+		set 
+			crp_tel = #{crpTel}, 
+			crp_url = #{crpUrl},
+			crp_email = #{crpEmail},
+			crp_address1 = #{crpAddress1},
+			crp_address2 = #{crpAddress2},
+			crp_zip_code = #{crpZipCode}
+		where 
+			crp_id = #{crpId}
+	</update>
+	
+	<!-- 기업 탈퇴 처리(Y/N) -->
+	<update id="crpRemove" parameterType="corporationVO">
+		update 
+			corporation
+		set 
+			crp_del_yn = 'Y'
+		where 
+			crp_id = #{crpId}
+	</update>
+	
+	
+	<!-- ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ -->
+	
+	<!-- 가입 신청 기업 목록 -->
+	<!-- 페이징 처리 -->
+	<select id="countjrCrpList" parameterType="pagingVO" resultType="int">
+		select
+			count(*)
+		from
+			join_req_crp
+		where
+			1 = 1
+	</select>
+	
+	<select id="jrCrpList" parameterType="pagingVO" resultType="joinreqcrpVO">
+	    SELECT
+	        b.*
+	    FROM (
+	        SELECT
+	            a.*, ROW_NUMBER() OVER (ORDER BY a.jo_req_crp_date DESC) AS rnum
+	        FROM (
+	            SELECT
+	                j_req_crp_id AS jo_req_crp_id, 
+	                j_req_crp_name AS jo_req_crp_name, 
+	                j_req_crp_representative AS jo_req_crp_representative,
+	                j_req_crp_date AS jo_req_crp_date,
+	                j_req_status AS jo_req_status
+	            FROM
+	                join_req_crp
+	            ORDER BY
+	                j_req_crp_date DESC
+	        ) a
+	    ) b
+	    <![CDATA[
+	    WHERE b.rnum >= #{startRow} AND b.rnum <= #{endRow}
+	    ]]>
+	</select>
+	
+	<!-- 가입 신청 기업 상세 조회 -->
+	<select id="jrCrpDetail" resultType="joinreqcrpVO">
+		select
+			j_req_crp_id as "joReqCrpId",
+			j_req_crp_name as "joReqCrpName",
+			j_req_crp_representative as "joReqCrpRepresentative",
+			j_req_crp_license_no as "joReqCrpLicenseNo",
+			j_req_crp_license_file as "joReqCrpLicenseFile",
+			j_req_crp_url as "joReqCrpUrl",
+			j_req_crp_add1 as "joReqCrpAdd1",
+			j_req_crp_add2 as "joReqCrpAdd2",
+			j_req_crp_zip_code as "joReqCrpZipCode",
+			j_req_crp_tel as "joReqCrpTel",
+			j_req_crp_email as "joReqCrpEmail",
+			j_req_crp_opening_day as "joReqCrpOpeningDay",
+			j_req_crp_industry_code as "joReqCrpIndustryCode"
+		from
+			join_req_crp
+		where 
+			j_req_crp_id = #{joReqCrpId}
+	</select>
+	
+	
+	<!-- 가입 신청 기업 승인 / 반려(Y/N) -->
+	<update id="jrCrpUpdate" parameterType="joinreqcrpVO">
+		update 
+			join_req_crp
+		set
+			j_req_status = #{joReqStatus}
+		where
+			j_req_crp_id = #{joReqCrpId}
+	</update>
+	
+	
+	<!-- 승인 버튼 눌렀을때(status = 'Y'가 될때 기업 목록 페이지로 추가) -->
+	<insert id="jrCrpInsert" parameterType="string">
+		insert into corporation (
+		    crp_id, 
+		    crp_name,
+		    crp_reg_no,
+		    crp_representative, 
+		    crp_license_no, 
+		    crp_license_file, 
+		    crp_url, 
+		    crp_address1, 
+		    crp_address2, 
+		    crp_zip_code,
+		    crp_tel,
+		    crp_email,
+		    crp_opening_day, 
+		    crp_industry_code,
+		    crp_reg_date
+		)
+		select 
+		    j_req_crp_id, 
+		    j_req_crp_name, 
+		    j_req_crp_reg_no,
+		    j_req_crp_representative, 
+		    j_req_crp_license_no, 
+		    j_req_crp_license_file, 
+		    j_req_crp_url, 
+		    j_req_crp_add1, 
+		    j_req_crp_add2,
+		    j_req_crp_tel,
+		    j_req_crp_email,
+		    j_req_crp_zip_code, 
+		    j_req_crp_opening_day, 
+		    j_req_crp_industry_code,
+		    sysdate
+		from
+		    join_req_crp
+		where
+		    j_req_status = 'Y'
+		and 
+			j_req_crp_id = #{crpId}
+	</insert>
+	
+
+
+	<!-- ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ -->
+	
+	<!-- 커뮤니티 목록 조회 -->
+	<!-- 페이징 처리 -->
+	<select id="countCommunityList" parameterType="pagingVO" resultType="int">
+		select
+			count(*)
+		from
+			community
+		where
+			1 = 1
+	</select>
+	
+	<select id="communityList" parameterType="pagingVO" resultType="communityVO">
+    SELECT
+        b.*
+    FROM (
+        SELECT
+            a.*, ROW_NUMBER() OVER (ORDER BY a.community_reg_date DESC) AS rnum
+        FROM (
+            SELECT
+                community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn,
+                (SELECT
+                    COUNT(*)
+                 FROM
+                    community_reply
+                 WHERE
+                    community_no = community.community_no) AS "replyCount"
+            FROM
+                community
+            ORDER BY
+                community_reg_date DESC
+        ) a
+    ) b
+    <![CDATA[
+    WHERE b.rnum >= #{startRow} AND b.rnum <= #{endRow}
+    ]]>
+	</select>
+	
+	
+	<!-- 커뮤니티 목록 최신순(등록순) 조회 -->
+	<select id="communitySortRecent" resultType="communityVO">
+		select
+			community_no, mem_id, community_title, community_reg_date, community_hit, community_del_yn, community_warn_yn,
+			(select
+				count(*)
+			 from
+			 	community_reply
+			 where
+			 	community_no = community.community_no) as "replyCount"
+		from
+			community
+		order by
+			community_reg_date DESC
+	</select>
+	
+	
+	<!-- 커뮤니티 상세 조회 -->
+	<select id="communityDetail" parameterType="int" resultType="map">
+		select 
+		    A.community_no as "communityNo", 
+		    B.mem_id as "memId", 
+		    B.mem_name as "memName", 
+		    A.community_title as "communityTitle", 
+		    dbms_lob.substr(A.community_content, dbms_lob.getlength(A.community_content), 1) as "communityContent", 
+		    A.community_reg_date as "communityRegDate",
+		    A.community_del_yn as "communityDelYN",
+		    A.community_warn_yn as "communityWarnYN"
+		from 
+		    community A
+		join 
+		    member B ON A.mem_id = B.mem_id
+		where
+		    A.community_no = #{communityNo}
+	</select>
+	
+	
+	<!-- 커뮤니티 댓글 조회 --> 
+	<select id="communityReply" parameterType="int" resultType="map">
+		select 
+			A.community_no as "communityNo",
+		    B.comm_reply_content as "commReplyContent",
+		    B.comm_reply_reg_date as "commReplyRegDate",
+		    B.comm_reply_no as "commReplyNo",
+		    B.comm_reply_del_yn as "commReplyDelYN",
+		    C.mem_id as "memId",
+		    C.mem_name as "memName"
+		from 
+		    community_reply B
+		join 
+		    member C ON B.mem_id = C.mem_id
+		join
+		    community A ON A.community_no = B.community_no
+		where 
+		    A.community_no = #{communityNo}
+	</select>
+
+
+	<!-- 커뮤니티 게시글 수정 -->
+	<update id="communityUpdate" parameterType="communityVO">
+		update 
+		    community
+		set 
+		    community_title = #{communityTitle}, 
+		    community_content = #{communityContent}
+		where
+		    community_no = #{communityNo}
+	</update>
+	
+	
+	<!-- 커뮤니티 댓글 수정 -->
+	<update id="replyUpdate" parameterType="communityReplyVO">
+		update 
+		    community_reply
+		set 
+		    comm_reply_content = #{commReplyContent}
+		where 
+		    comm_reply_no = #{commReplyNo}
+	</update>
+	
+	<!-- 커뮤니티 게시글 삭제(Y/N) -->
+	<update id="communityRemove" parameterType="communityVO">
+		update
+		    community
+		set 
+		    community_del_yn = 'Y'
+		where
+		    community_no = #{communityNo}
+	</update>
+	
+	
+	<!-- 커뮤니티 댓글 삭제(Y/N) -->
+	<update id="replyRemove" parameterType="communityReplyVO">
+		update 
+			community_reply
+		set 
+			comm_reply_del_yn = 'Y'
+		where 
+			comm_reply_no = #{commReplyNo}
+	</update>
+	
+	
+	<!-- 커뮤니티 아이콘 눌렀을때 신고 사유 보기 -->
+	<select id="complaintDetail" resultType="complaintVO" parameterType="int">
+		select 
+			complaint_no, mem_id, community_no, complaint_reason, complaint_content
+		from 
+			(select complaint_no, mem_id, community_no, complaint_reason, complaint_content
+		       from complaint
+		      where community_no = #{communityNo})
+		where rownum = 1
+	</select>
+	
+	<!-- ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ -->
+	
+	<!-- 공지사항 게시판 조회 -->
+	<!-- 페이징 처리 -->
+    <select id="countNoticeList" parameterType="pagingVO" resultType="int">
+        SELECT COUNT(*)
+        FROM board
+        WHERE 1 = 1
+        <if test="boardTypeCode != null and boardTypeCode != ''">
+            AND board_type_code = #{boardTypeCode, jdbcType=VARCHAR}
+        </if>
+    </select>
+
+    <select id="noticeList" parameterType="pagingVO" resultType="boardVO">
+        SELECT
+            b.*
+        FROM (
+            SELECT
+                a.*, ROW_NUMBER() OVER (ORDER BY a.board_reg_date DESC) AS rnum
+            FROM (
+                SELECT
+                    board_no, board_type_code, board_target_code, board_title, board_content, board_reg_date, del_yn
+                FROM
+                    board
+                WHERE
+                   1 = 1
+                <if test="boardTypeCode != null and boardTypeCode != ''">
+                    AND board_type_code = #{boardTypeCode, jdbcType=VARCHAR}
+                </if>
+                ORDER BY
+                    board_reg_date DESC
+            ) a
+        ) b
+        <![CDATA[
+        WHERE b.rnum >= #{startRow} AND b.rnum <= #{endRow}
+        ]]>
+    </select>
+	
+	
+	<!-- 공지사항 게시판 상세 조회 -->
+	<select id="noticeDetail" resultType="boardVO" parameterType="int">
+		select 
+			board_no, board_type_code, board_target_code, board_title, board_content, board_reg_date, board_upd_date, del_yn
+		from
+			board
+		where 
+			board_no = #{boardNo}
+	</select>
+	
+	
+	<!-- 공지사항 게시글 수정 -->
+	<update id="noticeUpdate" parameterType="boardVO">
+		update
+		    board
+		set
+		    board_title = #{boardTitle},
+		    board_content = #{boardContent}
+		where 
+			board_no = #{boardNo}
+	</update>
+	
+	
+	<!-- 공지사항 삭제(Y/N) -->
+	<update id="noticeRemove" parameterType="boardVO">
+		update
+			board
+		set
+			del_yn = 'Y'
+		where
+			board_no = #{boardNo}
+	</update>
+	
+	
+	<!-- 공지사항 등록 -->
+	<insert id="noticeInsert" parameterType="boardVO">
+		<selectKey keyProperty="boardNo" resultType="int" order="BEFORE">
+			select
+				seq_board.nextval
+			from
+				dual
+		</selectKey>
+		insert into board
+			(board_no, board_type_code, board_target_code, board_title, board_content, board_reg_date, del_yn)
+		values
+			(#{boardNo}, #{boardTypeCode}, #{boardTargetCode}, #{boardTitle}, #{boardContent}, TO_CHAR(SYSDATE, 'yyyy-MM-dd'), 'N')
+	</insert>
+	
+	
+	<!-- ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ -->
+	
+
+	<!-- 문의게시판 조회 -->
+	<!-- 페이징 처리 -->
+	<select id="countQuestionList" parameterType="pagingVO" resultType="int">
+		select
+			count(*)
+		from
+			question
+		where
+			1 = 1
+	</select>
+	
+	<select id="questionList" parameterType="pagingVO" resultType="questionVO">
+	    SELECT
+	        b.*
+	    FROM (
+	        SELECT
+	            a.*, ROW_NUMBER() OVER (ORDER BY a.question_reg_date DESC) AS rnum
+	        FROM (
+	            SELECT
+	                question_no, mem_id, board_target_code, question_title, question_content, question_reg_date, del_yn, answer_yn
+	            FROM 
+	                question
+	            ORDER BY
+	                question_reg_date DESC
+	        ) a
+	    ) b
+	    <![CDATA[
+	    WHERE b.rnum >= #{startRow} AND b.rnum <= #{endRow}
+	    ]]>
+	</select>
+	
+	
+	<!-- 문의게시판 상세 조회 -->
+	<select id="questionDetail" resultType="questionVO" parameterType="int">
+		select
+		    question_no, mem_id, board_target_code, question_title, question_content, question_reg_date, del_yn, answer_yn
+		from 
+		    question
+		where
+			question_no = #{questionNo}
+	</select>
+	
+	
+	<!-- 문의 답변하기 -->
+	<insert id="insertQuestionReply" parameterType="questionReplyVO">
+		<selectKey keyProperty="questionReplyNo" resultType="int" order="BEFORE">
+			select
+				seq_question_reply.nextval
+			from
+				dual
+		</selectKey>
+		insert into question_reply
+			(question_reply_no, question_no, question_reply_content, question_reply_reg_date, question_reply_del_yn)
+		values
+			(#{questionReplyNo}, #{questionNo}, #{questionReplyContent}, TO_CHAR(SYSDATE, 'yyyy-MM-dd'), 'N')
+	</insert>
+	
+	
+	<!-- 문의 답변 완료로 변경(Y/N) -->
+	<update id="updateQuestionAnswerStatus" parameterType="int">
+		update
+			question
+		set
+			answer_yn = 'Y'
+		where
+			question_no = #{questionNo}
+	</update>
+	
+	
+	<!-- 답변 내역 보기 -->
+	<select id="answerDetail" parameterType="int" resultType="questionReplyVO">
+		select
+			question_reply_no, question_no, question_reply_content, question_reply_reg_date, question_reply_del_yn
+		from
+			question_reply
+		where
+			question_no = #{questionNo}
+		order by
+			question_reply_reg_date DESC
+	</select>
+	
+	<!-- ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ -->
+	
+
+	<!-- 가장 많이 북마크에 추가된 공고순 -->
+	<select id="bookMarkList" resultType="hashMap">
+		<![CDATA[
+			WITH U AS(
+			    SELECT ROW_NUMBER() OVER(ORDER BY T.REC_NTC_ID_count DESC) RNUM, T.REC_NTC_ID, T.REC_NTC_TITLE, T.REC_NTC_ID_count
+			    FROM
+			    (
+			        SELECT A.REC_NTC_ID,
+			               A.REC_NTC_TITLE,
+			               (SELECT COUNT(*) FROM INTEREST_REC_NTC B WHERE B.REC_NTC_ID = A.REC_NTC_ID AND B.INTEREST_YN = 'Y') REC_NTC_ID_count
+			        FROM   RECRUITMENT_NOTICE A
+			    )  T
+			)
+			SELECT U.*
+			FROM   U
+			WHERE  U.RNUM <= 5
+		]]>
+	</select>
+	
+	<!-- 관심 기업순(interest_yn이 N일때가 관심기업 등록한 상태!!) -->
+	<select id="bookMarkList2" resultType="hashMap">
+		<![CDATA[
+			WITH U AS(
+			    SELECT ROW_NUMBER() OVER(ORDER BY T.REC_NTC_ID_COUNT DESC) RNUM, T.REC_NTC_ID, T.REC_NTC_TITLE, T.REC_NTC_ID_COUNT
+			    FROM
+			    (
+		            SELECT A.CRP_ID REC_NTC_ID,
+		                   A.CRP_NAME REC_NTC_TITLE,
+		                   (SELECT COUNT(*) FROM INTEREST_CORPORATION B WHERE B.CRP_ID = A.CRP_ID AND B.INTEREST_YN = 'N') REC_NTC_ID_COUNT
+		            FROM   CORPORATION A
+			    )  T
+			)
+			SELECT U.*
+			FROM   U
+			WHERE  U.RNUM <= 5
+		]]>
+	</select>
+	
+	<!-- 지원율이 가장 많은 기업순 -->
+	<select id="bookMarkList3" resultType="hashMap">
+	    <![CDATA[
+		    WITH U AS (
+		        SELECT 
+		            ROW_NUMBER() OVER (ORDER BY (SELECT COUNT(B.CRP_ID) 
+		                                         FROM APPLY A, RECRUITMENT_NOTICE B 
+		                                         WHERE A.REC_NTC_ID = B.REC_NTC_ID 
+		                                         AND B.CRP_ID = C.CRP_ID) DESC) AS RNUM,
+		            C.CRP_ID AS REC_NTC_ID,
+		            C.CRP_NAME AS REC_NTC_TITLE,
+		            (SELECT COUNT(B.CRP_ID) 
+		             FROM APPLY A, RECRUITMENT_NOTICE B 
+		             WHERE A.REC_NTC_ID = B.REC_NTC_ID 
+		             AND B.CRP_ID = C.CRP_ID) AS REC_NTC_ID_COUNT
+		        FROM CORPORATION C
+		    )
+		    SELECT U.REC_NTC_ID, U.REC_NTC_TITLE, U.REC_NTC_ID_COUNT
+		    FROM   U
+		    WHERE  U.RNUM <= 5
+	    ]]>
+	</select>
+	
+	<!-- 가장 많이 조회된 공고순 -->
+	<select id="bookMarkList4" resultType="hashMap">
+		<![CDATA[
+			WITH U AS (
+			    SELECT 
+			        ROW_NUMBER() OVER (ORDER BY A.HIT DESC) AS RNUM, 
+			        A.REC_NTC_ID, 
+			        A.REC_NTC_TITLE, 
+			        A.HIT,
+			        C.CRP_NAME
+			    FROM RECRUITMENT_NOTICE A
+			    JOIN CORPORATION C ON A.CRP_ID = C.CRP_ID
+			)
+			SELECT U.*
+			FROM   U
+			WHERE  U.RNUM <= 5
+		]]>
+	</select>
+	
+</mapper>

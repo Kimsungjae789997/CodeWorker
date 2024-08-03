@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.IApplicantStatisticsMapper">
+
+<select id="getTotalViews" resultType="int">
+	select sum(hit)
+	from recruitment_notice
+	<![CDATA[
+	where rec_ntc_start < sysdate and sysdate < rec_ntc_end
+	]]>
+</select>
+
+<select id="getTotalApply" resultType="int">
+	select count(*)
+	from apply a
+	inner join recruitment_notice rn on a.rec_ntc_id = rn.rec_ntc_id
+	<![CDATA[
+	where rec_ntc_start < sysdate and sysdate < rec_ntc_end
+	]]>
+</select>
+
+<select id="getTotalExpPerson" resultType="int">
+	select count(distinct a.apply_no) as apply_no_count
+	from apply a
+	inner join recruitment_notice rn on a.rec_ntc_id = rn.rec_ntc_id
+	inner join resume r on a.resume_no = r.resume_no
+	inner join resume_career rc on a.resume_no = rc.resume_no
+	<![CDATA[
+	where rec_ntc_start < sysdate and sysdate < rec_ntc_end
+	]]>
+</select>
+
+<select id="getTotalNewComer" resultType="int">
+	select count(distinct a.apply_no) as apply_no_count
+	from apply a
+	inner join recruitment_notice rn on a.rec_ntc_id = rn.rec_ntc_id
+	inner join resume r on a.resume_no = r.resume_no
+	left join resume_career rc on a.resume_no = rc.resume_no
+	where rc.res_career_no is null
+	<![CDATA[
+	and rec_ntc_start < sysdate and sysdate < rec_ntc_end
+	]]>
+</select>
+
+<select id="getApplicantByDay" resultType="applyVO">
+<![CDATA[
+with date_range as(
+	select trunc(sysdate - interval '12' day) + level - 1 as apply_date
+	from dual
+	connect by level <= 13
+)
+	select 
+		to_char(d.apply_date, 'YYYY-MM-DD') as applyDate, 
+		nvl(count(a.apply_no), 0) as applyCount
+	from 
+		date_range d
+		left join apply a on trunc(a.apply_date) = d.apply_date
+	group by d.apply_date
+	order by d.apply_date
+]]>
+</select>
+
+<resultMap type="applyVO" id="applyResultMap">
+	<result property="applyNo" column="apply_no" />
+	<result property="applyCount" column="applyCount" />
+	<result property="eduType" column="eduType" />
+	<association property="educationVO" javaType="kr.or.ddit.vo.EducationVO">
+		<result property="eduTypeCode" column="edu_type_code" />
+	</association>
+</resultMap>
+
+<select id="getApplicantByEdu" resultMap="applyResultMap">
+	<![CDATA[
+	select 
+	    (select detail_code_name
+		   from detail_code
+		  where detailcode = e.edu_type_code) as "eduType"
+	    , count(a.apply_no) as applycount
+	from apply a
+	inner join education e on a.mem_id = e.mem_id
+	inner join recruitment_notice rn on a.rec_ntc_id = rn.rec_ntc_id
+	where rec_ntc_start < sysdate and sysdate < rec_ntc_end
+	group by e.edu_type_code
+	order by e.edu_type_code
+	]]>
+</select>
+
+<resultMap type="applyVO" id="apply2ResultMap">
+	<result property="applyNo" column="apply_no"/>
+	<result property="applyCount" column="applyCount"/>
+</resultMap>
+
+<select id="getApplicantByMajor" resultMap="apply2ResultMap">
+	<![CDATA[
+	select 
+    	e.edu_major
+    	, count(a.apply_no) as applyCount
+	from apply a
+	inner join education e on a.mem_id = e.mem_id
+	inner join recruitment_notice rn on a.rec_ntc_id = rn.rec_ntc_id
+	where rec_ntc_start < sysdate and sysdate < rec_ntc_end
+	group by e.edu_major
+	order by e.edu_major
+	]]>
+</select>
+
+</mapper>

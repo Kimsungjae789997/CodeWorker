@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.IRecruitmentNoticeMapper">
+	
+<resultMap id="seekerResultMap" type="kr.or.ddit.vo.SeekerVO">
+    <id property="memId" column="mem_id"/>
+    <result property="seekerName" column="seeker_name"/>
+    <result property="seekerEmail" column="seeker_email"/>
+    <result property="seekerTel" column="seeker_tel"/>
+    <collection property="resumeList" ofType="kr.or.ddit.vo.ResumeVO">
+        <result property="resumeName" column="resume_name"/>
+        <result property="resumeYn" column="resume_yn"/>
+        <result property="selectedDate" column="selected_date"/>
+        <result property="resumeNo" column="resume_no"/>
+    </collection>
+</resultMap>
+	
+	
+	<select id="selectRecNtcCount" parameterType="pagingVO" resultType="int">
+		select count(rec_ntc_id)
+		from recruitment_notice
+		where crp_id = #{crpId}
+	</select>
+
+	<!-- 진행 중인 채용 -->
+	<select id="selectRecNtcList" parameterType="pagingVO" resultType="recruitmentNoticeVO">
+		select
+			b.*
+		from(
+			select
+				a.*, row_number() over(order by a.rec_ntc_id desc) rnum
+			from(
+				select 
+			        rn.rec_ntc_id
+			        , rn.rec_ntc_title
+			        , to_char(rn.rec_ntc_end, 'YYYY-MM-DD') as rec_ntc_end
+			        , to_char(rn.rec_ntc_start, 'YYYY-MM-DD') as rec_ntc_start
+			    from recruitment_notice rn
+			    where rn.crp_id = (select r.crp_id from recruiter r where r.mem_id = #{memId})
+			    order by rn.rec_ntc_id desc	
+			) a	
+		) b
+		<![CDATA[
+		where b.rnum >= #{startRow} and b.rnum <= #{endRow}	
+		]]>
+	</select>	
+	
+	<select id="recruitmentNoticeDetail" parameterType="string" resultType="recruitmentNoticeVO">
+		        select rec_ntc_id, crp_id, rec_ntc_title, 
+               rec_ntc_content, rec_ntc_start,to_char(rec_ntc_end, 'YYYY-MM-DD') rec_ntc_end,
+               (select d.detail_code_name from detail_code d where d.detailcode = rn.edu_code) edu_code,
+                (select d.detail_code_name from detail_code d where d.detailcode = rn.experience_code) experience_code,
+                (select d.detail_code_name from detail_code d where d.detailcode = rn.experience_level_code) experience_level_code,
+                (select d.detail_code_name from detail_code d where d.detailcode = rn.working_type_code) working_type_code,
+                (select d.detail_code_name from detail_code d where d.detailcode = rn.working_loc_code) working_loc_code,
+                (select d.detail_code_name from detail_code d where d.detailcode = rn.position_code) position_code,
+                (select d.detail_code_name from detail_code d where d.detailcode = rn.salary_range_code) salary_range_code,
+               ( select crp_info_url
+                from corporation_info
+                where  crp_id = (select crp_id from recruitment_notice rnn where rec_ntc_id = #{recNtcId} and del_yn = 'N') ) crp_info_url,
+               ( select crp_name
+                from corporation
+                where crp_id = (select crp_id from recruitment_notice rnn where rec_ntc_id = #{recNtcId} and del_yn = 'N') ) crp_name,
+                 ( select crp_id
+                from corporation
+                where crp_id = (select crp_id from recruitment_notice rnn where rec_ntc_id = #{recNtcId} and del_yn = 'N') ) crp_id,
+ 			  ( select crp_recntc_info
+                from corporation_info
+                where  crp_id = (select crp_id from recruitment_notice rnn where rec_ntc_id = #{recNtcId} and del_yn = 'N') ) crp_recntc_info,
+               ( select crp_address1
+                from corporation
+                where crp_id = (select crp_id from recruitment_notice rnn where rec_ntc_id = #{recNtcId} and del_yn = 'N') ) crp_address1,
+               ( select crp_address2
+                from corporation
+                where crp_id = (select crp_id from recruitment_notice rnn where rec_ntc_id = #{recNtcId} and del_yn = 'N') ) crp_address2,
+                ( select crp_name
+                from corporation
+                where crp_id = (select crp_id from recruitment_notice rnn where rec_ntc_id = #{recNtcId} and del_yn = 'N') ) crp_name
+        from recruitment_notice rn
+        where rec_ntc_id = #{recNtcId} and del_yn = 'N'
+	</select>
+	
+	<select id="getSkill" parameterType="string" resultType="recruitmentSkillStackVO">
+		select (select d.detail_code_name from detail_code d where d.detailcode = rs.skillstack_code) skillstack_code
+		from recruitment_skillstack rs
+		where rec_ntc_id = #{recNtcId}
+	</select>
+	
+	<select id="selectSeeker" parameterType="string" resultType="seekerVO">
+		select mem_id, seeker_name, seeker_email,
+		seeker_tel 
+		from seeker
+		where mem_id = #{memId}
+	</select>
+
+	<select id="selectSeekerWithResume" parameterType="string" resultMap="seekerResultMap">
+	    select s.mem_id, s.seeker_name, s.seeker_email, s.seeker_tel, r.resume_no,
+	           r.resume_name, r.resume_yn, NVL(r.resume_upd_date, r.resume_reg_date) selected_date
+	    from seeker s
+	    left join resume r on s.mem_id = r.mem_id and r.del_yn = 'N'
+	    where s.mem_id = #{memId}
+	</select>
+	
+	<select id="selfIntroSelect" parameterType="string" resultType="recruitmentSelfIntroVO">
+		select self_intro_no, rec_ntc_id, self_intro_title, self_intro_content
+		from recruitment_self_intro
+		where rec_ntc_id = #{recNtcId}
+	</select>
+	
+	<insert id="applyResume" parameterType="applyVO" useGeneratedKeys="true">
+	    <selectKey keyProperty="applyNo" resultType="int" order="BEFORE">
+	        SELECT apply_no_seq.NEXTVAL FROM dual
+	    </selectKey>
+	    INSERT INTO apply (
+	        apply_no, mem_id, rec_ntc_id, resume_no, apply_date
+	    ) VALUES (
+	        #{applyNo}, #{memId}, #{recNtcId}, #{resumeNo}, SYSDATE
+	    )
+	</insert>
+	
+	<insert id="insertApplicantProcessResult" parameterType="applyVO">
+	    INSERT INTO applicant_process_result (
+	        apply_no, rec_ntc_id, applicant_status_code, test_yn
+	    ) VALUES (
+	        #{applyNo}, #{recNtcId}, 'APP0101', '시험응시'
+	    )
+	</insert>
+	
+	<insert id="insertAnswerSelfIntro" parameterType="applyVO" useGeneratedKeys="true">
+	    <selectKey keyProperty="ansIntroNo" resultType="int" order="BEFORE">
+	        SELECT ans_intro_no_seq.NEXTVAL FROM dual
+	    </selectKey>
+	    INSERT INTO answer_self_intro (
+	        ans_intro_no, self_intro_no, apply_no, ans_intro_content
+	    ) VALUES (
+	        #{ansIntroNo}, #{selfIntroNo}, #{applyNo}, #{selfIntroText}
+	    )
+	</insert>
+	
+	 <update id="hit" parameterType="string">
+    	update recruitment_notice
+    	set hit = hit + 1
+    	where rec_ntc_id = #{recNtcId}
+    </update>
+    
+     <!--  최신순으로 채용공고 보기 -->
+     <select id="recentRecruitmentSelect" resultType="recruitmentNoticeVO">
+     select b.*
+		from (
+		  select a.rec_ntc_id, b.crp_name, a.crp_id, a.dept_code, a.rec_ntc_title, a.rec_ntc_content,
+		         a.rec_ntc_reg_date, a.rec_ntc_start, a.rec_ntc_end, 
+		        (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.edu_code) edu_code,
+		        (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_code) experience_code,
+		        (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_level_code) experience_level_code,  
+		        (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_type_code) working_type_code,  
+		        (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_loc_code) working_loc_code,
+		        (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.position_code) position_code,
+		        (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.salary_range_code) salary_range_code,
+		         a.rcrt_name, a.rcrt_tel, a.rcrt_email, a.hit, a.del_yn , c.crp_info_url,
+		         b.crp_logo_url
+		  from recruitment_notice a
+		  inner join corporation b on (a.crp_id = b.crp_id)
+          inner join corporation_info c on (a.crp_id = c.crp_id)  
+		  where a.del_yn = 'N'
+		  order by a.rec_ntc_start desc
+		)  b
+	</select>
+    
+    
+	<select id="getRecNtcId" parameterType="map" resultType="string">
+	    SELECT DISTINCT rec_ntc_id
+	    FROM RECRUITMENT_SKILLSTACK
+	    WHERE skillstack_code IN
+	    <foreach item="skill" collection="skills" open="(" separator="," close=")">
+	        #{skill}
+	    </foreach>
+	</select>
+    
+    
+    <!-- 채용공고 보기 -->
+<select id="views" parameterType="map" resultType="recruitmentNoticeVO">
+    select b.*
+    from (
+        select a.rec_ntc_id, b.crp_name, a.crp_id, a.dept_code, a.rec_ntc_title, a.rec_ntc_content,
+               a.rec_ntc_reg_date, a.rec_ntc_start, a.rec_ntc_end, 
+               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.edu_code) edu_code,
+               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_code) experience_code,
+               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_level_code) experience_level_code,  
+               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_type_code) working_type_code,  
+               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_loc_code) working_loc_code,
+               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.position_code) position_code,
+               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.salary_range_code) salary_range_code,
+               a.rcrt_name, a.rcrt_tel, a.rcrt_email, a.hit, a.del_yn , c.crp_info_url,
+               b.crp_logo_url
+        from recruitment_notice a
+        inner join corporation b on (a.crp_id = b.crp_id)
+        inner join corporation_info c on (a.crp_id = c.crp_id)  
+        where a.del_yn = 'N' and sysdate between a.rec_ntc_start and a.rec_ntc_end
+        
+        <if test="filters != null and !filters.isEmpty()">
+            AND (
+                <foreach collection="filters" item="filter" separator=" OR ">
+                    (
+                        a.experience_code = #{filter} 
+                        OR a.experience_level_code = #{filter}
+                        <!-- Additional filter conditions -->
+                    )
+                </foreach>
+            )
+        </if>
+        
+        <if test="locations != null and !locations.isEmpty()">
+            AND (
+                <foreach collection="locations" item="location" separator=" OR ">
+                    <choose>
+                        <when test="location == 'LOC0117'">
+                            (
+                                a.working_loc_code != 'LOC0117'
+                                AND a.working_loc_code IN ('LOC0101', 'LOC0102', 'LOC0103', 'LOC0104', 'LOC0105', 
+                                                           'LOC0106', 'LOC0107', 'LOC0108', 'LOC0109', 'LOC0110', 
+                                                           'LOC0111', 'LOC0112', 'LOC0113', 'LOC0114', 'LOC0115', 
+                                                           'LOC0116', 'LOC0118')
+                            )
+                        </when>
+                        <otherwise>
+                            (
+                                a.working_loc_code = #{location}
+                            )
+                        </otherwise>
+                    </choose>
+                </foreach>
+            )
+        </if>
+        
+        <if test="recNtcIdList != null and !recNtcIdList.isEmpty()">
+            AND (
+                <foreach collection="recNtcIdList" item="filter" separator=" OR ">
+                    (
+                        a.rec_ntc_id = #{filter} 
+                        <!-- Additional filter conditions -->
+                    )
+                </foreach>
+            )
+        </if>
+        
+        <if test="eduCode != null">
+            <choose>
+                <when test="eduCode == 'defaultEduCode'">
+                    AND a.edu_code IN ('EDU0101','EDU0107', 'EDU0108', 'EDU0109', 'EDU0110')
+                </when>
+                <when test="eduCode == 'EDU0107'">
+                    AND a.edu_code IN ('EDU0107', 'EDU0108', 'EDU0109', 'EDU0110')
+                </when>
+                <when test="eduCode == 'EDU0108'">
+                    AND a.edu_code IN ('EDU0108', 'EDU0109', 'EDU0110')
+                </when>
+                <when test="eduCode == 'EDU0109'">
+                    AND a.edu_code IN ('EDU0109', 'EDU0110')
+                </when>
+                <when test="eduCode == 'EDU0110'">
+                    AND a.edu_code = 'EDU0110'
+                </when>
+            </choose>
+        </if>
+        
+        <if test="posCode != null and !posCode.isEmpty()">
+            AND (
+                <foreach collection="posCode" item="code" separator=" OR ">
+                    <choose>
+                        <when test="code == 'defaultPosCode'">
+                            (
+                             a.position_code IN ('POS0101', 'POS0102', 'POS0103', 'POS0104', 'POS0105', 
+                                                 'POS0106', 'POS0107', 'POS0108', 'POS0109', 'POS0110', 
+                                                 'POS0111', 'POS0112', 'POS0113', 'POS0114', 'POS0115', 
+                                                 'POS0116')
+                            )
+                        </when>
+                        <otherwise>
+                            (
+                                a.position_code = #{code}
+                            )
+                        </otherwise>
+                    </choose>
+                </foreach>
+            )
+        </if>
+        
+        <if test="sort == 'latest'">
+            ORDER BY a.rec_ntc_start DESC
+        </if>
+        
+        <if test="sort == 'views'">
+            ORDER BY a.hit DESC
+        </if>
+    ) b
+</select>
+
+	<select id="autoComplete" resultType="detailCodeVO">
+	 select detailcode, detail_code_name
+	 from detail_code
+	 where code_yn = 'N' and code = 'SKL01'
+	</select>
+    
+</mapper>

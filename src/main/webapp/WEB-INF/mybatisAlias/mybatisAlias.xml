@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	<!-- 
+	[마이바티스] 스프링에서 "_"를 사용한 컬럼명을 사용 시(BOOK 테이블의 BOOK_ID)
+	카멜케이스로 읽어줌(bookId), INSERT_DATE => insertDate
+	ex) 테이블 컬러명이 member_id인 경우 jsp화면단에서 이 값을 사용 시 memberId로 사용
+	-->
+	<settings>
+		<setting name="mapUnderscoreToCamelCase" value="true"/>
+	</settings>
+	<!-- 자주 사용하는 타입의 별칭을 세팅 -->
+	<typeAliases>
+<!-- 		<typeAlias type="kr.or.ddit.vo.BookVO" alias="bookVO" /> -->
+		<typeAlias type="kr.or.ddit.vo.MemberVO" alias="memberVO" />
+        <typeAlias type="kr.or.ddit.vo.MemberAuth" alias="memberAuth"/>
+        <typeAlias type="kr.or.ddit.vo.SeekerVO" alias="seekerVO" />
+        <typeAlias type="kr.or.ddit.vo.RecruitmentNoticeVO" alias="recruitmentNoticeVO" />
+        <typeAlias type="kr.or.ddit.vo.PaginationInfoVO" alias="pagingVO" />
+        <typeAlias type="kr.or.ddit.vo.ProposalVO" alias="proposalVO" />
+        <typeAlias type="kr.or.ddit.vo.EducationVO" alias="educationVO" />
+        <typeAlias type="kr.or.ddit.vo.ResumeVO" alias="resumeVO" />
+        <typeAlias type="kr.or.ddit.vo.CorporationVO" alias="corporationVO" />
+        <typeAlias type="kr.or.ddit.vo.InterestRecNtcVO" alias="interestrecntcVO" />
+        <typeAlias type="kr.or.ddit.vo.ApplyVO" alias="applyVO" />
+        <typeAlias type="kr.or.ddit.vo.RecruiterVO" alias="recruiterVO"/>
+        <typeAlias type="kr.or.ddit.vo.CodingTestVO" alias="codingTestVO"/>
+        <typeAlias type="kr.or.ddit.vo.InterviewVO" alias="interviewVO"/>
+        <typeAlias type="kr.or.ddit.vo.JoinReqCrpVO" alias="joinreqcrpVO"/>
+        <typeAlias type="kr.or.ddit.vo.ResumeSkillVO" alias="resumeSkillVO" />
+        <typeAlias type="kr.or.ddit.vo.RecruitmentSkillStackVO" alias="recruitmentSkillStackVO"/>
+        <typeAlias type="kr.or.ddit.vo.CertificationVO" alias="certificationVO"/>
+        <typeAlias type="kr.or.ddit.vo.ResumeCareerVO" alias="resumeCareerVO"/>          
+        <typeAlias type="kr.or.ddit.vo.RecruitmentSelfIntroVO" alias="recruitmentSelfIntroVO"/>
+        <typeAlias type="kr.or.ddit.vo.AnswerSelfIntroVO" alias="answerSelfIntroVO"/>
+        <typeAlias type="kr.or.ddit.vo.AnswerCodingTestVO" alias="answerCodingTestVO"/>
+        <typeAlias type="kr.or.ddit.vo.RecruitmentCodingTestVO" alias="recruitmentCodingTestVO"/>
+        <typeAlias type="kr.or.ddit.vo.AlarmVO" alias="alarmVO"/>
+        <typeAlias type="kr.or.ddit.vo.CommunityVO" alias="communityVO"/>
+        <typeAlias type="kr.or.ddit.vo.CommunityReplyVO" alias="communityReplyVO"/>
+        <typeAlias type="kr.or.ddit.vo.BoardVO" alias="boardVO"/>
+        <typeAlias type="kr.or.ddit.vo.InterestCorporationVO" alias="interestCorporationVO"/>
+        <typeAlias type="kr.or.ddit.vo.ComplaintVO" alias="complaintVO"/>
+        <typeAlias type="kr.or.ddit.vo.QuestionVO" alias="questionVO"/>
+        <typeAlias type="kr.or.ddit.vo.QuestionReplyVO" alias="questionReplyVO"/>
+        <typeAlias type="kr.or.ddit.vo.DetailCodeVO" alias="detailCodeVO"/>
+        <typeAlias type="kr.or.ddit.vo.RecentViewVO" alias="recentViewVO"/>
+        <typeAlias type="kr.or.ddit.vo.ResumeFileVO" alias="resumeFileVO"/>
+	</typeAliases>
+</configuration>
+
+

@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.IMypageMapper">
+
+	<select id="seekerMypageSelect" parameterType="string" resultType="seekerVO">
+		SELECT mem_id, seeker_name, seeker_birth, seeker_zip, seeker_add1,
+		       seeker_add2, seeker_email, seeker_tel, seeker_join_date, seeker_status_code,
+		       seeker_profile_url, seeker_exp
+		FROM seeker
+		WHERE mem_id = #{memId}
+	</select>
+	
+	<select id="seekerProfileSelect" parameterType="string" resultType="seekerVO">
+		SELECT mem_id, seeker_name, seeker_birth, seeker_zip, seeker_add1,
+		       seeker_add2, seeker_email, seeker_tel, seeker_join_date, seeker_status_code,
+		       seeker_profile_url, seeker_exp
+		FROM seeker
+		WHERE mem_id = #{memId}
+	</select>
+	
+	<select id="seekerEduSelect" parameterType="string" resultType="educationVO">
+	    SELECT edu_no, edu_type_code, edu_name, edu_major, edu_graduated_yn, edu_graduated_date, edu_insert_date
+	    FROM education
+	    WHERE mem_id = #{memId}
+	      AND edu_insert_date = (
+	        SELECT MAX(edu_insert_date)
+	        FROM education
+	        WHERE mem_id = #{memId}
+	     )
+	</select> 
+	
+	<update id="profileMemNameUpdate" parameterType="memberVO">
+		UPDATE member
+		SET mem_name = #{memName}
+		WHERE mem_id = #{memId}		
+	</update>
+	
+	<update id="profileUpdate" parameterType="seekerVO">
+		UPDATE seeker
+		SET seeker_name = #{seekerName},
+			seeker_zip = #{seekerZip},
+			seeker_add1 = #{seekerAdd1},
+			seeker_add2 = #{seekerAdd2},
+			seeker_email = #{seekerEmail},
+			seeker_tel = #{seekerTel},
+			seeker_status_code = #{seekerStatusCode},
+			<if test="seekerProfileUrl != null and seekerProfileUrl !=''">
+			seeker_profile_url = #{seekerProfileUrl},
+			</if>
+			seeker_exp = #{seekerExp}
+		WHERE mem_id = #{memId}
+	</update>
+	
+<select id="checkMemIdExists" parameterType="string" resultType="int">
+    select count(1) from education where mem_id = #{memId}
+</select>
+
+<update id="educationUpdate" parameterType="educationVO">
+  update education
+    SET edu_type_code = #{eduTypeCode},
+        edu_name = #{eduName},
+        edu_major = #{eduMajor},
+        edu_graduated_yn = 'Y',
+        edu_graduated_date = #{eduGraduatedDate},
+        edu_insert_date = sysdate
+    WHERE mem_id = #{memId}
+</update>
+
+<insert id="educationInsert" parameterType="educationVO" useGeneratedKeys="true">
+   <selectKey keyProperty="eduNo" resultType="int" order="BEFORE">
+        SELECT edu_no_seq.nextval FROM dual
+    </selectKey>
+    INSERT INTO education(
+        edu_no, edu_type_code, edu_name, edu_major, mem_id,
+        edu_graduated_yn, edu_graduated_date, edu_insert_date
+    ) VALUES (
+        #{eduNo}, #{eduTypeCode}, #{eduName}, #{eduMajor}, #{memId},
+        'Y', #{eduGraduatedDate}, sysdate
+    )
+</insert>
+
+<select id="allCountSelect" parameterType="string" resultType="hashMap">
+	select
+		(select count(mem_id) from interest_rec_ntc where mem_id = #{memId} and interest_yn ='N') interest_rec_ntc_count,
+		(select count(mem_id) from interest_corporation where mem_id = #{memId}) interest_corporation_count,
+		(select count(pro_no) from proposal where mem_id = #{memId}) proposal_count,
+		(SELECT COUNT(*)
+			FROM applicant_process_result apr
+			JOIN (
+			    SELECT apply_no
+			    FROM apply
+			    WHERE mem_id = #{memId}
+			) a ON apr.apply_no = a.apply_no
+			WHERE apr.applicant_status_code = 'APP0101') apply_count,
+		( 
+		    SELECT COUNT(*)
+			FROM applicant_process_result apr
+			JOIN (
+			    SELECT apply_no
+			    FROM apply
+			    WHERE mem_id = #{memId}
+			) a ON apr.apply_no = a.apply_no
+			WHERE apr.applicant_status_code = 'APP0102'
+		) apply_count2,
+		( 
+		    SELECT COUNT(*)
+			FROM applicant_process_result apr
+			JOIN (
+			    SELECT apply_no
+			    FROM apply
+			    WHERE mem_id = #{memId}
+			) a ON apr.apply_no = a.apply_no
+			WHERE apr.applicant_status_code = 'APP0103'
+		) apply_count3,
+		( 
+		    SELECT COUNT(*)
+			FROM applicant_process_result apr
+			JOIN (
+			    SELECT apply_no
+			    FROM apply
+			    WHERE mem_id = #{memId}
+			) a ON apr.apply_no = a.apply_no
+			WHERE apr.applicant_status_code = 'APP0104'
+		) apply_count4,
+		( 
+		    SELECT COUNT(*)
+			FROM applicant_process_result apr
+			JOIN (
+			    SELECT apply_no
+			    FROM apply
+			    WHERE mem_id = #{memId}
+			) a ON apr.apply_no = a.apply_no
+			WHERE apr.applicant_status_code = 'APP0105'
+		) apply_count5
+	from dual
+	</select>
+	
+	<select id="applySuccess" parameterType="string" resultType="applyVO">
+        select a.crp_id, a.rec_ntc_id,  a.rec_ntc_title,
+               (select d.detail_code_name from detail_code d where d.detailcode = a.position_code) position_code,
+               (select crp_name from corporation co where co.crp_id = a.crp_id) crp_name  , b.*
+            from recruitment_notice a inner join
+                (
+                select 
+                     to_char(w.apply_date, 'YYYY-MM-DD') apply_date,
+                    w.rec_ntc_id
+                    ,(select d.detail_code_name from detail_code d where d.detailcode = b.applicant_status_code) applicant_status_code
+                from apply w inner join applicant_process_result b
+                on(w.apply_no = b.apply_no) 
+                where b.applicant_status_code = 'APP0101' and w.mem_id = #{memId}
+                ) b 
+                on(a.rec_ntc_id = b.rec_ntc_id)
+	</select>
+	
+	<select id="documentSuccess" parameterType="string" resultType="applyVO">
+        select a.crp_id, a.rec_ntc_id,  a.rec_ntc_title,
+               (select d.detail_code_name from detail_code d where d.detailcode = a.position_code) position_code,
+               (select crp_name from corporation co where co.crp_id = a.crp_id) crp_name  , b.*
+            from recruitment_notice a inner join
+                (
+                select 
+                     to_char(w.apply_date, 'YYYY-MM-DD') apply_date,
+                    w.rec_ntc_id
+                    ,(select d.detail_code_name from detail_code d where d.detailcode = b.applicant_status_code) applicant_status_code,
+                    b.test_yn
+                from apply w inner join applicant_process_result b
+                on(w.apply_no = b.apply_no) 
+                where b.applicant_status_code = 'APP0102' and w.mem_id = #{memId}
+                ) b 
+                on(a.rec_ntc_id = b.rec_ntc_id)
+	</select>
+	
+	<select id="coteSuccess"  parameterType="string" resultType="applyVO">
+        select a.crp_id, a.rec_ntc_id,  a.rec_ntc_title,
+               (select d.detail_code_name from detail_code d where d.detailcode = a.position_code) position_code,
+               (select crp_name from corporation co where co.crp_id = a.crp_id) crp_name  , b.*, i.intvw_date
+            from recruitment_notice a inner join
+                (
+                select 
+                     to_char(w.apply_date, 'YYYY-MM-DD') apply_date,
+                    w.rec_ntc_id
+                    ,(select d.detail_code_name from detail_code d where d.detailcode = b.applicant_status_code) applicant_status_code
+                from apply w inner join applicant_process_result b
+                on(w.apply_no = b.apply_no) 
+                where b.applicant_status_code = 'APP0103' and w.mem_id = #{memId}
+                ) b 
+                on(a.rec_ntc_id = b.rec_ntc_id)
+                inner join interview i on (a.rec_ntc_id = i.rec_ntc_id)
+	</select>
+	
+	<select id="finalApplySuccess"  parameterType="string" resultType="applyVO">
+        select a.crp_id, a.rec_ntc_id,  a.rec_ntc_title,
+               (select d.detail_code_name from detail_code d where d.detailcode = a.position_code) position_code,
+               (select crp_name from corporation co where co.crp_id = a.crp_id) crp_name  , b.*
+            from recruitment_notice a inner join
+                (
+                select 
+                     to_char(w.apply_date, 'YYYY-MM-DD') apply_date,
+                    w.rec_ntc_id
+                    ,(select d.detail_code_name from detail_code d where d.detailcode = b.applicant_status_code) applicant_status_code
+                from apply w inner join applicant_process_result b
+                on(w.apply_no = b.apply_no) 
+                where b.applicant_status_code = 'APP0104' and w.mem_id = #{memId}
+                ) b 
+                on(a.rec_ntc_id = b.rec_ntc_id)
+	</select>
+	
+	
+	<select id="failApplySuccess"  parameterType="string" resultType="applyVO">
+        select a.crp_id, a.rec_ntc_id,  a.rec_ntc_title,
+               (select d.detail_code_name from detail_code d where d.detailcode = a.position_code) position_code,
+               (select crp_name from corporation co where co.crp_id = a.crp_id) crp_name  , b.*
+            from recruitment_notice a inner join
+                (
+                select 
+                     to_char(w.apply_date, 'YYYY-MM-DD') apply_date,
+                    w.rec_ntc_id
+                    ,(select d.detail_code_name from detail_code d where d.detailcode = b.applicant_status_code) applicant_status_code
+                from apply w inner join applicant_process_result b
+                on(w.apply_no = b.apply_no) 
+                where b.applicant_status_code = 'APP0105' and w.mem_id = #{memId}
+                ) b 
+                on(a.rec_ntc_id = b.rec_ntc_id)
+	</select>
+	
+	<select id="getCount1" parameterType="string" resultType="int">
+	    select count(b.apply_no) cnt1
+	    from applicant_process_result b
+	    where b.apply_no IN (
+	        select a.apply_no
+	        from apply a
+	        where a.mem_id = #{memId}
+	    ) 
+	    and b.applicant_status_code = 'APP0101'
+	</select>
+	
+	<select id="getCount2" parameterType="string" resultType="int">
+	    select count(b.apply_no) cnt1
+	    from applicant_process_result b
+	    where b.apply_no IN (
+	        select a.apply_no
+	        from apply a
+	        where a.mem_id = #{memId}
+	    ) 
+	    and b.applicant_status_code = 'APP0102'
+	</select>
+	
+	<select id="getCount3" parameterType="string" resultType="int">
+	    select count(b.apply_no) cnt1
+	    from applicant_process_result b
+	    where b.apply_no IN (
+	        select a.apply_no
+	        from apply a
+	        where a.mem_id = #{memId}
+	    ) 
+	    and b.applicant_status_code = 'APP0103'
+	</select>
+	
+	<select id="getCount4" parameterType="string" resultType="int">
+	    select count(b.apply_no) cnt1
+	    from applicant_process_result b
+	    where b.apply_no IN (
+	        select a.apply_no
+	        from apply a
+	        where a.mem_id = #{memId}
+	    ) 
+	    and b.applicant_status_code = 'APP0104'
+	</select>
+	
+	<select id="getCount5" parameterType="string" resultType="int">
+	    select count(b.apply_no) cnt1
+	    from applicant_process_result b
+	    where b.apply_no IN (
+	        select a.apply_no
+	        from apply a
+	        where a.mem_id = #{memId}
+	    ) 
+	    and b.applicant_status_code = 'APP0105'
+	</select>
+	
+	<select id="coteNoSelect" parameterType="string" resultType="recruitmentCodingTestVO">
+		select cote_no
+		from recruitment_coding_test
+		where rec_ntc_id = #{recNtcId}
+	</select>
+	
+	<select id="getCoteInfo" parameterType="int" resultType="codingTestVO">
+		select 
+			cote_no, cote_title, question_content, ex_answer1, ex_answer2, ex_ansnum1, ex_ansnum2,
+			cote_constraints1, cote_constraints2, ex_resnum1, ex_resnum2
+		from coding_test
+		where cote_no = #{coteNo}
+	</select>
+	
+	<select id="selectRecNtc" parameterType="string" resultType="recruitmentNoticeVO">
+		select rn.rec_ntc_id , rn.rec_ntc_title,  (select d.detail_code_name from detail_code d where d.detailcode = rn.position_code) position_code
+		from recruitment_notice rn
+		where rec_ntc_id = #{recNtcId}
+	</select>
+	
+	<select id="getRecCoteNo" parameterType="map" resultType="int">
+		select rec_coding_test_no
+		from recruitment_coding_test
+		where rec_ntc_id = #{recNtcId} and cote_no = #{coteNo}
+	</select>
+	
+	<select id="getApplyNo" parameterType="map" resultType="int">
+		select apply_no
+		from apply
+		where mem_id = #{memId} and rec_ntc_id = #{recNtcId}
+	</select>
+	
+	<insert id="coteInsert" parameterType="map" useGeneratedKeys="true">
+		<selectKey  keyProperty="ansCoteNo" resultType="int" order="BEFORE">
+			select ans_cote_no_seq.nextval FROM dual
+		</selectKey>
+		insert into answer_coding_test(
+			ans_cote_no, rec_coding_test_no, apply_no, ans_cote_content
+		)values(
+			#{ansCoteNo}, #{recCodingTestNo}, #{applyNo}, #{output}
+		)
+		
+	</insert>
+	
+	<select id="selectAnswerCodingTest" parameterType="map" resultType="answerCodingTestVO">
+		select ans_cote_no
+		from answer_coding_test
+		where rec_coding_test_no = #{recCodingTestNo} and
+			  apply_no = #{applyNo}
+	</select>
+	
+	<update id="coteUpdate" parameterType="map">
+		update answer_coding_test
+		set ans_cote_content = #{output}
+		where rec_coding_test_no = #{recCodingTestNo}
+		and apply_no = #{applyNo}
+	</update>
+	
+	<update id="updateTestStatus" parameterType="map">
+		update applicant_process_result
+		set test_yn = '응시완료'
+		where apply_no = #{applyNo}
+	</update>
+	
+	<select id="bookMarkAll" parameterType="string" resultType="recruitmentNoticeVO">
+		select a.rec_ntc_id, c.crp_id, c.crp_name, b.rec_ntc_title, b.rec_ntc_content,
+		 b.rec_ntc_reg_date, b.rec_ntc_start, b.rec_ntc_end,
+		 	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = b.edu_code) edu_code,
+			               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = b.experience_code) experience_code,
+			               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = b.experience_level_code) experience_level_code,  
+			               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = b.working_type_code) working_type_code,  
+			               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = b.working_loc_code) working_loc_code,
+			               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = b.position_code) position_code,
+			               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = b.salary_range_code) salary_range_code,
+			               b.rcrt_name, b.rcrt_tel, b.rcrt_email, b.hit, b.del_yn , d.crp_info_url,
+			               c.crp_logo_url
+		from interest_rec_ntc a
+		inner join recruitment_notice b on (a.rec_ntc_id = b.rec_ntc_id)
+		inner join corporation c on (b.crp_id = c.crp_id)
+		inner join corporation_info d on (c.crp_id = d.crp_id)
+		where mem_id = #{memId} and a.interest_yn = 'N'
+		and sysdate between b.rec_ntc_start and b.rec_ntc_end
+		order by a.interest_date desc
+	</select>
+
+	<select id="goInterestCrpAll" parameterType="string" resultType="corporationVO">
+		select
+		b.crp_id, b.crp_name, b.crp_info, b.crp_logo_url,
+		 (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = b.crp_industry_code) crp_industry_code
+		from interest_corporation a 
+		inner join corporation b on ( a.crp_id = b.crp_id )
+		where mem_id = #{memId} and interest_yn = 'N'
+		order by a.int_date desc
+	</select>
+	
+ 	<select id="getRecCount" parameterType="string" resultType="int">
+		select count(rec_ntc_id) recAll
+		from recruitment_notice
+		where crp_id = #{crpId} and del_yn = 'N'
+		and sysdate between rec_ntc_start and rec_ntc_end
+	</select>
+	
+	<select id="goProposalAll" parameterType="string" resultType="corporationVO">
+		select
+			a.pro_no,
+		    b.crp_id, 
+		    b.crp_name, 
+		    b.crp_logo_url,      
+		    c.rec_ntc_title, 
+		    to_char(a.pro_date, 'YYYY-MM-DD') pro_date  , 
+		    a.rec_ntc_id,
+		    a.pro_reply_status_code,
+		    (select d.detail_code_name from detail_code d where d.detailcode = b.crp_industry_code) as crp_industry_code
+		from 
+		    proposal a
+		    inner join corporation b on (a.crp_id = b.crp_id)
+		    inner join recruitment_notice c on (a.crp_id = c.crp_id and a.rec_ntc_id = c.rec_ntc_id)
+		where 
+		    a.mem_id = #{memId}
+		    and a.crp_id IN (
+		        select crp_id
+		        from proposal
+		        where mem_id = #{memId}
+		    )
+		    and a.rec_ntc_id IN (
+		        select rec_ntc_id
+		        from proposal
+		        where mem_id = #{memId}
+		    )
+		order by 
+		    a.pro_date desc
+	</select>
+
+	<update id="proposalAccept" parameterType="int">
+		update proposal
+		set pro_reply_status_code = 'PRO0102'
+		where pro_no = #{proNo}
+	</update>
+	
+	<update id="proposalDeny" parameterType="int">
+		update proposal
+		set pro_reply_status_code = 'PRO0103'
+		where pro_no = #{proNo}
+	</update>
+</mapper>

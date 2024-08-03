@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.RecruitInsertMapper">
+
+	<sql id="coteSearch">
+	    <choose>
+	        <when test="searchType != null and searchType == 'LEV0101'">
+	            and ct.cote_level_code = 'LEV0101'
+	            and cote_title like '%'||#{searchWord}||'%'
+	        </when>
+	        <when test="searchType != null and searchType == 'LEV0102'">
+	            and ct.cote_level_code = 'LEV0102'
+	            and cote_title like '%'||#{searchWord}||'%'
+	        </when>
+	        <when test="searchType != null and searchType == 'LEV0103'">
+	            and ct.cote_level_code = 'LEV0103'
+	            and cote_title like '%'||#{searchWord}||'%'
+	        </when>
+	        <otherwise>
+		
+	        </otherwise>
+	    </choose>
+	</sql>
+
+
+
+	<select id="selectCoteCount"  parameterType="pagingVO"  resultType="int">
+		select count(cote_no)
+		from coding_test
+		where 1=1
+		<include refid="coteSearch"/>
+	</select>
+
+	
+		<select id="coteMainSelect" parameterType="pagingVO" resultType="codingTestVO">
+		    SELECT *
+		    FROM (
+		        SELECT cote_no, cote_title,
+		               (SELECT d.detail_code_name
+		                FROM detail_code d
+		                WHERE d.detailcode = ct.cote_level_code) cote_level_code,
+		               rownum rnum
+		        FROM coding_test ct
+		        where 1=1
+		        <include refid="coteSearch"/>
+		    )
+		     <![CDATA[
+		    WHERE rnum <= 10
+		     ]]>
+		</select>
+		
+		
+		<select id="selectByCoteNoList" parameterType="map" resultType="codingTestVO">
+		      select cote_title, question_content, cote_constraints1, cote_constraints2, cote_no
+		       from coding_test
+		       where cote_no in
+		       <foreach item="item" collection="coteNoList" open="(" separator="," close=")">
+		           #{item}
+		       </foreach>
+   	  </select>
+		
+		<insert id="intialInsert" parameterType="recruitmentNoticeVO" useGeneratedKeys="true">
+		    <selectKey keyProperty="recNtcId" resultType="string" order="BEFORE">
+		        select 'A'||recntcid_seq.nextval from dual
+		    </selectKey>
+		
+		    insert into recruitment_notice(
+		        rec_ntc_id, crp_id, rec_ntc_title, rec_ntc_content,
+		        rec_ntc_reg_date, rec_ntc_start, rec_ntc_end, edu_code, 
+		        experience_code,
+		        <if test="experienceLevelCode != null">experience_level_code,</if>
+		        working_type_code, working_loc_code, 
+		        position_code, salary_range_code, rcrt_name, rcrt_tel,
+		        rcrt_email, hit, del_yn
+		    )
+		    values(
+		        #{recNtcId}, #{crpId}, #{recNtcTitle}, #{recNtcContent},
+		        sysdate, #{recNtcStart}, #{recNtcEnd}, #{eduCode},
+		        #{experienceCode},
+		        <if test="experienceLevelCode != null">#{experienceLevelCode},</if>
+		        #{workingTypeCode}, #{workingLocCode},
+		        #{positionCode}, #{salaryRangeCode}, #{rcrtName}, #{rcrtTel},
+		        #{rcrtEmail}, 0, 'N'
+		    )
+		</insert>
+		
+		<select id="selectCrpId" parameterType="string" resultType="string">
+			select crp_id
+			from recruiter
+			where mem_id = #{memId}
+		</select>
+		
+	<insert id="skillInsert" parameterType="map">
+	    INSERT ALL
+	    <foreach collection="skillstackList" item="skillCode">
+	        INTO recruitment_skillstack (rec_ntc_id, skillstack_code)
+	        VALUES (#{recNtcId}, #{skillCode})
+	    </foreach>
+	    SELECT 1 FROM DUAL
+	</insert>
+	
+	<insert id="insertInterview" parameterType="interviewVO" useGeneratedKeys="true">
+	<selectKey keyProperty="intvwNo" resultType="int" order="BEFORE">
+		select intvw_seq.nextval from dual
+	</selectKey>
+		insert into interview(
+			intvw_no, rec_ntc_id, intvw_date, intvw_location 
+		)values(
+			#{intvwNo},#{recNtcId}, #{intvwDate}, #{intvwLocation}
+		)
+	</insert>
+	
+	<insert id="insertSelfIntro" parameterType="map" useGeneratedKeys="true">
+	<selectKey keyProperty="selfIntroNo" resultType="int" order="BEFORE">
+		select self_intro_seq.nextval from dual
+	</selectKey>
+		insert into recruitment_self_intro(
+		 self_intro_no, rec_ntc_id, self_intro_title, self_intro_content
+		)values(
+		 #{selfIntroNo}, #{recNtcId}, #{selfIntroTitle}, #{selfIntroContent}
+		)
+	</insert>
+	
+	<insert id="insertCodingTest" parameterType="map" useGeneratedKeys="true">
+	<selectKey keyProperty="recCodingTestNo" resultType="int" order="BEFORE">
+	 select rec_cote_seq.nextval from dual
+	</selectKey>
+		insert into recruitment_coding_test(
+		rec_coding_test_no, rec_ntc_id, cote_no
+		)values(
+		#{recCodingTestNo}, #{recNtcId}, #{coteNo}
+		)
+	</insert>
+	
+	
+</mapper>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.IMyCorpMgmtMapper">
+
+    <resultMap type="memberVO" id="memberResultMap">
+        <result property="memId" column="mem_id"/>
+        <result property="memName" column="mem_name"/>
+        <result property="memTypeCode" column="mem_type_code"/>
+        <result property="rnum" column="rnum" />
+        <association property="recruitVO" javaType="kr.or.ddit.vo.RecruiterVO">
+            <result property="crpId" column="crp_id"/>
+            <result property="rcrtPosition" column="rcrt_position"/>
+            <result property="rcrtTel" column="rcrt_tel"/>
+            <result property="rcrtEmail" column="rcrt_email"/>
+            <result property="rcrtJoinDate" column="rcrt_join_date"/>
+        </association>
+    </resultMap>
+    
+    <delete id="deleteRecruiterMember" parameterType="String">
+    	delete from recruiter
+    	where mem_id = #{memId}
+    </delete>
+    
+    <delete id="deleteMemberAuth" parameterType="String">
+    	delete from member_auth
+    	where mem_id = #{memId}
+    </delete>
+    
+    <delete id="deleteCommonMember" parameterType="String">
+    	delete from member
+    	where mem_id = #{memId}
+    </delete>
+    
+    <!-- 기업ID 가져오기 -->
+    <select id="getCrpIdByMemId" parameterType="String" resultType="String">
+		select crp_id
+		from recruiter
+		where mem_id = #{currentUserId}
+    </select>
+
+	<!-- 기업회원 계정생성 1 -->
+	<insert id="addMember1" parameterType="memberVO">
+	    insert into member(
+	        mem_id, mem_pw, mem_type_code, mem_name, enabled
+	    ) values (
+	        #{memId}, #{memPw}, 'ROL0103', #{memName}, 1
+	    )
+	</insert>
+	
+	<!-- 기업회원 계정생성 2 -->
+	<insert id="addMember2" parameterType="memberVO">
+	    insert into recruiter(
+	    	mem_id, crp_id, rcrt_tel, rcrt_position, rcrt_join_date, rcrt_email, enabled
+	    ) values (
+	        #{memId}, #{crpId}, #{recruitVO.rcrtTel}, #{recruitVO.rcrtPosition},
+	        TO_CHAR(sysdate, 'YYYY-MM-DD'), #{recruitVO.rcrtEmail}, 1
+	    )
+	</insert>
+	
+	<!-- 기업회원 계정생성 (auth) -->
+	<insert id="addMemberAuth" parameterType="string">
+	insert into member_auth(
+		mem_id, mem_auth
+	)values(
+		#{memId}, 'ROLE_RECRUITER'
+	)
+	</insert>
+	
+    <select id="addMemberIdCheck" parameterType="string" resultType="memberVO">
+    	select
+    		mem_id
+    	from member
+    	where mem_id = #{memId}
+    </select>
+    
+    <select id="selectMemberCount" parameterType="pagingVO" resultType="int">
+		select count(mem_id)
+		from recruiter
+		where crp_id = (select crp_id from recruiter where mem_id = #{memId})
+    </select>
+    
+    <select id="selectMemberList" parameterType="pagingVO" resultMap="memberResultMap">
+    	select
+		    b.*
+		from (
+		    select
+		        a.*, row_number() over(order by a.rcrt_join_date desc) rnum
+		    from (
+				select 
+				    m.mem_name, r.rcrt_position, r.mem_id, r.rcrt_tel, r.rcrt_email, r.rcrt_join_date
+				from recruiter r 
+				inner join member m
+				on r.mem_id = m.mem_id
+				where r.crp_id = (select r.crp_id from recruiter r where r.mem_id = #{memId})
+				order by r.rcrt_join_date desc
+		    ) a
+		) b
+		<![CDATA[
+		where b.rnum >= #{startRow} and b.rnum <= #{endRow}	
+		]]>
+    </select>
+    
+    <resultMap id="recruiterResultMap" type="recruiterVO">
+    	<result property="crpId" column="crp_id" />
+    	<result property="rcrtPosition" column="rcrt_position" />
+    	<association property="memberVO" javaType="kr.or.ddit.vo.MemberVO">
+    		<result property="memName" column="mem_name" />
+    	</association>
+    	<association property="corporationVO" javaType="kr.or.ddit.vo.CorporationVO">
+    		<result property="crpName" column="crp_name"/>
+    		<result property="crpLogoUrl" column="crp_logo_url"/>
+    	</association>
+    </resultMap>
+    
+    <!-- aside Profile 정보 -->
+    <select id="getAsideProfile" parameterType="String" resultMap="recruiterResultMap">
+		select 
+			r.crp_id
+			, r.rcrt_position
+			, m.mem_name
+			, c.crp_name
+			, c.crp_logo_url 
+		from recruiter r
+		inner join member m on r.mem_id = m.mem_id
+		inner join corporation c on r.crp_id = c.crp_id
+		where m.mem_id = #{memId}
+    </select>
+    
+</mapper>

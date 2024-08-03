@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mapper.ISeekerMainPageMapper">
+
+	<select id="autoComplete" resultType="corporationVO">
+		select crp_name, crp_id
+		from corporation
+	</select>
+	
+	<select id="recentRecruitmentSelect" resultType="recruitmentNoticeVO">
+	    select b.*
+	    from (
+	        select a.rec_ntc_id, b.crp_name, a.crp_id, a.dept_code, a.rec_ntc_title, a.rec_ntc_content,
+	               a.rec_ntc_reg_date, a.rec_ntc_start, a.rec_ntc_end, 
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.edu_code) edu_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_code) experience_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_level_code) experience_level_code,  
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_type_code) working_type_code,  
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_loc_code) working_loc_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.position_code) position_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.salary_range_code) salary_range_code,
+	               a.rcrt_name, a.rcrt_tel, a.rcrt_email, a.hit, a.del_yn , c.crp_info_url,
+	               b.crp_logo_url
+	        from recruitment_notice a
+	        inner join corporation b on (a.crp_id = b.crp_id)
+	        inner join corporation_info c on (a.crp_id = c.crp_id)  
+	        where a.del_yn = 'N'
+	        and sysdate between a.rec_ntc_start and a.rec_ntc_end
+	        order by  a.rec_ntc_start desc
+	    ) b
+	</select>
+	
+<!-- 	<select id="locationRecruitmentSelect" parameterType="string" resultType="recruitmentNoticeVO">
+		        select *
+        from(
+		  select a.rec_ntc_id, b.crp_name, a.crp_id, a.dept_code, a.rec_ntc_title, a.rec_ntc_content,
+		         a.rec_ntc_reg_date, a.rec_ntc_start, a.rec_ntc_end, a.edu_code,
+		         a.experience_code, a.experience_level_code, a.working_type_code,
+		         a.working_loc_code, a.position_code, a.salary_range_code,
+		         a.rec_ntc_status_code, a.rcrt_name, a.rcrt_tel, a.rcrt_email, a.hit, a.del_yn
+		  from recruitment_notice a
+		  inner join corporation b on a.crp_id = b.crp_id
+		  where a.del_yn = 'N' and a.working_loc_code = (
+		         select detailcode
+                 from detail_code
+                 where detail_code_name =(
+               select substr(seeker_add1, 1, 2)
+               from seeker
+               where mem_id = #{memId}   
+                                         )
+                                                         )
+             ) <![CDATA[
+		where rownum <= 4
+			 ]]>
+	</select>
+	 -->
+	<select id="locationRecruitmentSelect" parameterType="string" resultType="recruitmentNoticeVO">
+	    select b.*
+	    from (
+	        select a.rec_ntc_id, b.crp_name, a.crp_id, a.dept_code, a.rec_ntc_title, a.rec_ntc_content,
+	               a.rec_ntc_reg_date, a.rec_ntc_start, a.rec_ntc_end, 
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.edu_code) edu_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_code) experience_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_level_code) experience_level_code,  
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_type_code) working_type_code,  
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_loc_code) working_loc_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.position_code) position_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.salary_range_code) salary_range_code,
+	               a.rcrt_name, a.rcrt_tel, a.rcrt_email, a.hit, a.del_yn , c.crp_info_url,
+	               b.crp_logo_url
+	        from recruitment_notice a
+	        inner join corporation b on a.crp_id = b.crp_id
+	        inner join corporation_info c on a.crp_id = c.crp_id
+	        where a.del_yn = 'N' 
+	        and a.working_loc_code = (
+	            select detailcode
+	            from detail_code
+	            where detail_code_name = (
+	                select substr(seeker_add1, 1, 2)
+	                from seeker
+	                where mem_id = #{memId}
+	            )
+	        )
+	        and sysdate between a.rec_ntc_start and a.rec_ntc_end
+	    ) b
+	</select>
+	
+	
+	
+	<select id="locationSelect" parameterType="string" resultType="string">
+		select substr(seeker_add1,1,2)
+		from seeker
+		where mem_id = #{memId}
+	</select>
+	
+	<select id="profileSearch" parameterType="string" resultType="string">
+		select seeker_profile_url
+		from seeker
+		where mem_id = #{memId}
+	</select>
+	
+	<select id="checkInterestRecNtc" parameterType="interestrecntcVO" resultType="interestrecntcVO">
+		select rec_ntc_id, mem_id, interest_date,interest_yn
+		from interest_rec_ntc
+		where rec_ntc_id = #{recNtcId} and 
+			  mem_id = #{memId}
+	</select>
+	
+	<insert id="boomarkInsert" parameterType="interestrecntcVO">
+	 insert into interest_rec_ntc(
+	 	rec_ntc_id, mem_id, interest_date,interest_yn
+	 )values(
+	 	 #{recNtcId},#{memId}, sysdate, 'N'
+	 )
+	</insert>
+	
+	<update id="bookmarkUpdate" parameterType="interestrecntcVO">
+	    update interest_rec_ntc
+	    set interest_date = sysdate,
+	         
+	        <choose>
+	            <when test='"Y".equalsIgnoreCase(interestYn)'>
+	               interest_yn ='N'
+	            </when>
+	            <otherwise>
+	                interest_yn ='Y'
+	            </otherwise>
+	        </choose>
+	    where mem_id = #{memId}  and rec_ntc_id = #{recNtcId}
+	
+	</update>
+	
+	<select id="boomarkSelect" parameterType="interestrecntcVO" resultType="interestrecntcVO">
+		select rec_ntc_id, mem_id, interest_date,interest_yn
+		from interest_rec_ntc
+		where rec_ntc_id = #{recNtcId} and mem_id = #{memId} and interest_yn = 'N'
+	</select>
+
+
+	<select id="crpSelect" parameterType="string" resultType="corporationVO">
+	    SELECT 
+	        co.crp_id, 
+	        co.crp_logo_url, 
+	        co.crp_name, 
+	        co.crp_address1, 
+	        co.crp_address2, 
+	        (SELECT d.detail_code_name 
+	         FROM detail_code d 
+	         WHERE d.detailcode = co.crp_type_code) crp_type_code,
+	        (SELECT d.detail_code_name 
+	         FROM detail_code d 
+	         WHERE d.detailcode = co.crp_industry_code) crp_industry_code,
+	        co.crp_info, 
+	        co.crp_representative, 
+	        co.crp_tel, 
+	        co.crp_email, 
+	        co.crp_capitalstock, 
+	        co.crp_emp_number,
+	        ci.crp_info_url
+	    FROM corporation co 
+	    INNER JOIN corporation_info ci ON (co.crp_id = ci.crp_id)
+	    WHERE co.crp_id = #{crpId}
+	</select>
+	
+	<select id="recruitmentAllSelect" parameterType="string" resultType="recruitmentNoticeVO">
+		select rec_ntc_title, rec_ntc_start, rec_ntc_end, rec_ntc_id,
+		(select d.detail_code_name from detail_code d where d.detailcode = rn.position_code) position_code,
+		(select d.detail_code_name from detail_code d where d.detailcode = rn.working_loc_code) working_loc_code,
+		(select d.detail_code_name from detail_code d where d.detailcode = rn.experience_code) experience_code,
+		(select d.detail_code_name from detail_code d where d.detailcode = rn.experience_level_code) experience_level_code
+		from recruitment_notice rn
+		where crp_id = #{crpId}
+		and sysdate between rn.rec_ntc_start and rn.rec_ntc_end
+	</select>
+	
+	<select id="recruitmentCount" parameterType="string" resultType="int">
+		select count(rec_ntc_id) recNtcCount
+		from recruitment_notice
+		where crp_id = #{crpId}
+	</select>
+	
+	<select id="interestCrpSelect" parameterType="interestCorporationVO" resultType="interestCorporationVO">
+		select crp_id, mem_id, int_date, interest_yn
+		from interest_corporation
+		where crp_id = #{crpId} and mem_id = #{memId} and interest_yn = 'N'
+	</select>
+	
+	<select id="checkInterestCor" parameterType="interestCorporationVO" resultType="interestCorporationVO">
+		select crp_id, mem_id, int_date, interest_yn
+		from interest_corporation
+		where crp_id = #{crpId} and mem_id = #{memId}  
+	</select>
+	
+	<insert id="intCorInsert" parameterType="interestCorporationVO">
+		insert into interest_corporation(
+			crp_id, mem_id, int_date, interest_yn
+		)values(
+			#{crpId}, #{memId}, sysdate, 'N'
+		)
+	</insert>
+	
+	<update id="intCorUpdate" parameterType="interestCorporationVO">
+		update interest_corporation
+		set int_date = sysdate,
+			<choose>
+				<when test='"Y".equalsIgnoreCase(interestYn)'>
+					interest_yn ='N'
+				</when>
+				<otherwise>
+					interest_yn ='Y'
+				</otherwise>
+			</choose>
+		where mem_id = #{memId} and crp_id = #{crpId}
+	</update>
+	
+	<select id="selectInterestCrpCount" parameterType="interestCorporationVO" resultType="int">
+		select count(mem_id) count
+		from interest_corporation
+		where crp_id = #{crpId} and interest_yn = 'N'
+	</select>
+	
+		<insert id="addRecentView" parameterType="map" useGeneratedKeys="true">
+         <selectKey keyProperty="recViewNo" resultType="int" order="BEFORE">
+             SELECT rec_view_no_seq.NEXTVAL FROM dual
+         </selectKey>
+         INSERT INTO RECENT_VIEW (
+             rec_view_no, rec_view_date, mem_id, rec_ntc_id
+         ) VALUES (
+             #{recViewNo}, systimestamp, #{memId}, #{recNtcId}
+         )
+     </insert>
+	
+	<select id="recViewSelect" parameterType="string" resultType="RecruitmentNoticeVO">
+	    select b.*
+	    from (
+	        select a.rec_ntc_id, b.crp_name, a.crp_id, a.dept_code, a.rec_ntc_title, a.rec_ntc_content,
+	               a.rec_ntc_reg_date, a.rec_ntc_start, a.rec_ntc_end, 
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.edu_code) edu_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_code) experience_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.experience_level_code) experience_level_code,  
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_type_code) working_type_code,  
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.working_loc_code) working_loc_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.position_code) position_code,
+	               (SELECT d.detail_code_name FROM detail_code d WHERE d.detailcode = a.salary_range_code) salary_range_code,
+	               a.rcrt_name, a.rcrt_tel, a.rcrt_email, a.hit, a.del_yn , c.crp_info_url,
+	               b.crp_logo_url,
+	               rvn.rec_view_date,
+	               ROW_NUMBER() OVER (PARTITION BY a.rec_ntc_id ORDER BY rvn.rec_view_date DESC) as rn
+	        from recruitment_notice a
+	        inner join corporation b on a.crp_id = b.crp_id
+	        inner join corporation_info c on a.crp_id = c.crp_id   
+	        inner join recent_view rvn on a.rec_ntc_id = rvn.rec_ntc_id
+	        where rvn.mem_id = #{memId}
+	        and a.del_yn = 'N' 
+	        and sysdate between a.rec_ntc_start and a.rec_ntc_end
+	    ) b
+	    where b.rn = 1
+	    order by b.rec_view_date desc
+	</select>
+	
+	
+</mapper>
